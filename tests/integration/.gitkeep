@@ -1,0 +1,2 @@
+# Phase 2 adds the first integration test here: Next.js route -> n8n webhook -> Supabase -> response.
+# See docs/TESTING.md and docs/DEVELOPMENT_PLAN.md.

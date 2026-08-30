@@ -1,0 +1,37 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run E2E suite
+        run: npm run test:e2e
+        env:
+          # External paid APIs (LLM, Fish Audio) are mocked for this suite per docs/TESTING.md —
+          # do not point this at real provider credentials.
+          CI: true
+
+  # Add this job's name to Vercel Deployment Checks alongside "quality" once the E2E suite is
+  # real (docs/DEPLOYMENT.md) — a broken core user flow should also hold back production.

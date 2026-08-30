@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit -- --run
+
+      - name: Integration tests
+        run: npm run test:integration -- --run
+
+      - name: Production build
+        run: npm run build
+
+      # Design-quality gate — enable once src/ actually contains UI (docs/DEVELOPMENT_PLAN.md
+      # Phase 8). Requires Impeccable installed (docs/UI_DESIGN.md). Left commented out until
+      # then so CI doesn't fail on a repo with no UI yet.
+      # - name: Impeccable design lint
+      #   run: npx impeccable detect --json src/
+
+  # NOTE: this job's name ("quality") is what you select under Vercel Project Settings ->
+  # Deployment Checks -> Add Checks -> GitHub, per docs/DEPLOYMENT.md. If you rename this job,
+  # update the Deployment Check selection to match or it silently stops gating production.
