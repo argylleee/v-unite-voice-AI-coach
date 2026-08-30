@@ -77,10 +77,21 @@ Update this when a milestone is actually done and verified — not when it's sta
   migration artifact).
 
 ## Phase 4 — RAG
-- [ ] PDF ingestion
-- [ ] TXT ingestion
-- [ ] knowledge_search tool wired to AI Agent
-- [ ] "What does our SOP say?" works, with source citation
+- [x] Embedding model chosen: Cohere `embed-english-v3.0` (1024 dims). Migration `0004`
+      applied — `knowledge_chunks.embedding` is `vector(1024)`, HNSW index +
+      `match_knowledge_chunks` recreated. `.env.example` updated (also restored — see note).
+- [x] Next.js: `POST /api/knowledge` (multipart upload → PDF/TXT + 4 MB + 25-doc/clinic
+      validation → forward file to n8n with bearer) and `GET /api/knowledge?clinicId=` (list
+      + `chunk_count` + status). 13 integration tests. (`src/lib/validation/knowledge.ts`)
+- [x] n8n build guide: `n8n/PHASE_4_BUILD.md` — WF-03 ingestion + TOOL-knowledge_search,
+      exact node config, Cohere `/v2/embed` calls, SQL, verify + grounding checklist.
+- [ ] n8n side (user-built): WF-03 Knowledge Ingestion (PDF + TXT)
+- [ ] n8n side (user-built): TOOL-knowledge_search wired onto WF-01's agent; WF-01 system
+      message updated for SQL-vs-RAG + grounding; WF-01 republished
+- [ ] "What does our SOP say?" → answer quotes the doc, `evidence` has a `knowledge_base`
+      item with the source filename
+- [ ] Grounding: asking about a NOT-uploaded policy → "knowledge base doesn't cover it",
+      no fabrication (this is the required failure test, docs/TESTING.md)
 
 ## Phase 5 — Hybrid reasoning
 - [ ] SQL + RAG combined question produces specific, evidence-based coaching

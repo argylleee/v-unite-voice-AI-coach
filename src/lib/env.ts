@@ -16,3 +16,11 @@ export function n8nChatConfig(): { url: string; secret: string } {
     secret: required("N8N_WEBHOOK_SECRET"),
   };
 }
+
+/** n8n knowledge-ingestion webhook config (WF-03). */
+export function n8nKnowledgeConfig(): { url: string; secret: string } {
+  return {
+    url: required("N8N_KNOWLEDGE_WEBHOOK_URL"),
+    secret: required("N8N_WEBHOOK_SECRET"),
+  };
+}
