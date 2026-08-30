@@ -24,3 +24,6 @@ test-results/
 .DS_Store
 *.log
 .vercel
+
+# stray n8n API dumps
+/[A-Za-z0-9]{16}
