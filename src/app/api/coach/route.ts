@@ -1,9 +1,8 @@
 import { n8nChatConfig } from "@/lib/env";
 import { callN8nWebhook, N8nError } from "@/lib/n8n/client";
 import {
-  AgentResponseSchema,
   FALLBACK_RESPONSE,
-  unwrapAgentPayload,
+  parseAgentResponse,
   type AgentResponse,
 } from "@/lib/validation/agent-response";
 import { ChatRequestSchema } from "@/lib/validation/chat";
@@ -76,7 +75,5 @@ async function callAndValidate(
     payload,
     timeoutMs: COACH_TIMEOUT_MS,
   });
-  const candidate = unwrapAgentPayload(raw);
-  const parsed = AgentResponseSchema.safeParse(candidate);
-  return parsed.success ? parsed.data : null;
+  return parseAgentResponse(raw);
 }

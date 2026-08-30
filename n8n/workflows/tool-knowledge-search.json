@@ -2,70 +2,163 @@
   "name": "TOOL-knowledge_search",
   "nodes": [
     {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "clinicId"
+            }
+          ]
+        }
+      },
       "id": "d96cacc6-d710-46fd-9e91-5a4d42513c8e",
       "name": "When Called",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0],
-      "parameters": { "inputSource": "workflowInputs", "workflowInputs": { "values": [ { "name": "query", "type": "string" }, { "name": "clinicId", "type": "string" } ] } }
+      "position": [
+        0,
+        0
+      ]
     },
     {
-      "id": "ddccac30-4d0d-48ca-a0a8-0e765b6d9bc3",
-      "name": "Embed Query",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [224, 0],
       "parameters": {
         "method": "POST",
         "url": "https://api.cohere.com/v2/embed",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "cohereApi",
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_query\", \"embedding_types\": [\"float\"], \"texts\": [ ($json.query || \"test query\") ] } }}",
-        "options": { "timeout": 30000 }
+        "options": {
+          "timeout": 30000
+        }
       },
-      "credentials": { "cohereApi": { "name": "Cohere account" } }
+      "id": "ddccac30-4d0d-48ca-a0a8-0e765b6d9bc3",
+      "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "cohereApi": {
+          "name": "Cohere account"
+        }
+      }
     },
     {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "v",
+              "name": "embeddingLiteral",
+              "type": "string",
+              "value": "={{ \"[\" + $json.embeddings.float[0].join(\",\") + \"]\" }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
       "id": "a37d0c75-49d8-4544-81a2-23c1f779ad6c",
       "name": "Vector Literal",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
-      "position": [448, 0],
-      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [ { "id": "v", "name": "embeddingLiteral", "type": "string", "value": "={{ \"[\" + $json.embeddings.float[0].join(\",\") + \"]\" }}" } ] } }
+      "position": [
+        448,
+        0
+      ]
     },
     {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select d.filename as source, m.content, round(m.similarity::numeric, 3) as similarity from match_knowledge_chunks($1::vector, $2::uuid, 8, 0.3) m join knowledge_documents d on d.id = m.document_id order by m.similarity desc",
+        "options": {
+          "queryReplacement": "={{ $json.embeddingLiteral }}, {{ $(\"When Called\").item.json.clinicId || \"80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4\" }}"
+        }
+      },
       "id": "eedcbc64-8afc-4ab0-8d11-c3a42364a506",
       "name": "Match Chunks",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
-      "position": [672, 0],
+      "position": [
+        672,
+        0
+      ],
       "alwaysOutputData": true,
-      "parameters": {
-        "resource": "database",
-        "operation": "executeQuery",
-        "query": "select d.filename as source, m.content, round(m.similarity::numeric, 3) as similarity from match_knowledge_chunks($1::vector, $2::uuid, 5, 0.5) m join knowledge_documents d on d.id = m.document_id order by m.similarity desc",
-        "options": { "queryReplacement": "={{ $json.embeddingLiteral }}, {{ $(\"When Called\").item.json.clinicId || \"80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4\" }}" }
-      },
-      "credentials": { "postgres": { "name": "V-Unite Supabase" } }
+      "credentials": {
+        "postgres": {
+          "name": "V-Unite Supabase"
+        }
+      }
     },
     {
+      "parameters": {
+        "jsCode": "const rows=$input.all().map(i=>i.json).filter(r=>r&&r.content);if(rows.length===0){return [{json:{found:0,chunks:[],note:'No matching content in the clinic knowledge base.'}}];}return [{json:{found:rows.length,chunks:rows.map(r=>({source:r.source,content:r.content,similarity:Number(r.similarity)}))}}];"
+      },
       "id": "49e6e9df-9624-4c46-a39b-87c5cf02d629",
       "name": "Shape",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [896, 0],
-      "parameters": { "mode": "runOnceForAllItems", "language": "javaScript", "jsCode": "const rows=$input.all().map(i=>i.json).filter(r=>r&&r.content);if(rows.length===0){return [{json:{found:0,chunks:[],note:'No matching content in the clinic knowledge base.'}}];}return [{json:{found:rows.length,chunks:rows.map(r=>({source:r.source,content:r.content,similarity:Number(r.similarity)}))}}];" }
+      "position": [
+        896,
+        0
+      ]
     }
   ],
   "connections": {
-    "When Called": { "main": [[{ "node": "Embed Query", "type": "main", "index": 0 }]] },
-    "Embed Query": { "main": [[{ "node": "Vector Literal", "type": "main", "index": 0 }]] },
-    "Vector Literal": { "main": [[{ "node": "Match Chunks", "type": "main", "index": 0 }]] },
-    "Match Chunks": { "main": [[{ "node": "Shape", "type": "main", "index": 0 }]] }
+    "When Called": {
+      "main": [
+        [
+          {
+            "node": "Embed Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embed Query": {
+      "main": [
+        [
+          {
+            "node": "Vector Literal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Literal": {
+      "main": [
+        [
+          {
+            "node": "Match Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Chunks": {
+      "main": [
+        [
+          {
+            "node": "Shape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {}
 }

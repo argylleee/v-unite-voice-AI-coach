@@ -87,20 +87,34 @@ Update this when a milestone is actually done and verified — not when it's sta
       exact node config, Cohere `/v2/embed` calls, SQL, verify + grounding checklist.
 - [x] n8n workflows built (WF-03 ingestion, TOOL-knowledge_search) + `knowledge_search` wired
       onto WF-01's agent, SQL-vs-RAG + grounding system message, output-parser example.
-- [x] **Migrated to V-Unite's Railway instance** (`primary-production-c0ce.up.railway.app`) —
-      all 3 workflows pushed via the n8n public API: WF-01 `wtkNL2SwbOcZTfGc`, WF-03
-      `JkcN37NRDhXC6ZAH`, TOOL `qKirMi1Liebzd3Oz`. Model node swapped Groq -> DeepSeek
-      (`lmChatOpenAi` + `deepseek-chat`, base URL on the credential). Import JSON is in
-      `n8n/workflows/`; steps in `n8n/MIGRATION.md`. Dev instance workflows now stale.
-- [ ] Finish on Railway (user): create the 4 credentials (`V-Unite Supabase`, `V-Unite n8n
-      Webhook Secret`, `DeepSeek`, `Cohere account`) with those exact names; confirm each node
-      picked them up; activate TOOL -> WF-03 -> WF-01; repoint `N8N_CHAT_WEBHOOK_URL` +
-      `N8N_KNOWLEDGE_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` in `.env.local`.
-- [ ] Re-verify Phase 3 (3 questions) + Phase 4 (upload, SOP question, grounding) on Railway.
-- [ ] "What does our SOP say?" → answer quotes the doc, `evidence` has a `knowledge_base`
-      item with the source filename
-- [ ] Grounding: asking about a NOT-uploaded policy → "knowledge base doesn't cover it",
-      no fabrication (this is the required failure test, docs/TESTING.md)
+- [x] **Migrated to V-Unite's Railway instance** (`primary-production-c0ce.up.railway.app`),
+      LLM swapped Groq -> **DeepSeek** (`lmChatOpenAi` + `deepseek-chat`, base URL on the
+      `DeepSeek` credential). Live IDs: WF-01 `jqhA2QoRzHkrarno`, WF-03 `ZPJQHNi1EJrkdWGF`,
+      TOOL `WUu7dGYIp3THhDw4` — all active. `n8n/workflows/*.json` re-snapshotted from the
+      live instance; `n8n/MIGRATION.md` documents the pitfalls hit.
+- [x] WF-03 ingestion verified end to end: `POST /webhook/knowledge` with a TXT SOP ->
+      `{ok:true, chunks:1, status:"ready"}`; Supabase has the chunk with a 1024-dim embedding.
+      (WF-03 rework needed: extraction must precede the Postgres insert — it drops binary;
+      `Insert Chunks` uses the Postgres *insert* op, not comma-split query params.)
+- [x] `knowledge_search` retrieval works: "What does our SOP say about cancellations?" ->
+      quotes the policy from `Consultation SOP.txt`. `match_threshold` lowered 0.5 -> 0.3 for
+      this small corpus.
+- [x] Grounding (required failure test): "What is our refund/returns policy?" -> refuses,
+      no fabrication.
+- [x] Full app path verified: `/api/coach` -> Railway WF-01 -> DeepSeek + 4 tools ->
+      Supabase, all 3 coaching questions + SOP + grounding clean, no `degraded`.
+- [x] DeepSeek emits inconsistent JSON, so WF-01 now returns the model's **raw text**
+      (`{ agent_output }`); `src/lib/validation/agent-response.ts` `parseAgentResponse()`
+      strips fences / surrounding prose / nested-`answer` wrapping, then Zod-validates
+      (retry once, then `degraded` fallback). 11 unit + 12 integration tests.
+
+### Phase 4 notes
+- PDF ingestion path (`Extract PDF`) is wired the same as TXT but not yet tested with a
+  real PDF file.
+- WF-03 `Cohere Embed` uses a Header Auth cred (`Cohere Header`); TOOL `Embed Query` uses the
+  predefined `cohereApi` cred (`Cohere account`) — both work on n8n 2.35.3, left as-is.
+- Retrieval quality on a 1-doc / 1-chunk corpus is marginal; revisit chunk size + threshold
+  in Phase 5 when there are more documents.
 
 ## Phase 5 — Hybrid reasoning
 - [ ] SQL + RAG combined question produces specific, evidence-based coaching

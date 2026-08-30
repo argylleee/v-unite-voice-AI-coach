@@ -93,8 +93,23 @@ describe("POST /api/coach", () => {
     });
   });
 
-  it("unwraps a wrapped agent payload ({ output: ... })", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ output: AGENT_RESPONSE }));
+  it("parses the real WF-01 shape: { agent_output: '<json string>' }", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ agent_output: JSON.stringify(AGENT_RESPONSE) }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(AGENT_RESPONSE);
+  });
+
+  it("recovers when the model wraps its JSON in prose + a code fence", async () => {
+    const messy = `Here is the response based on the knowledge base.\n\n\`\`\`json\n${JSON.stringify(
+      AGENT_RESPONSE,
+    )}\n\`\`\``;
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ agent_output: messy }));
     vi.stubGlobal("fetch", fetchMock);
 
     const res = await POST(makeRequest(VALID_BODY));
