@@ -23,7 +23,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"embed-english-v3.0\", \"input_type\": \"search_query\", \"embedding_types\": [\"float\"], \"texts\": [{{ JSON.stringify($json.query) }}] }",
+        "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_query\", \"embedding_types\": [\"float\"], \"texts\": [ ($json.query || \"test query\") ] } }}",
         "options": { "timeout": 30000 }
       },
       "credentials": { "cohereApi": { "name": "Cohere account" } }
@@ -47,7 +47,7 @@
         "resource": "database",
         "operation": "executeQuery",
         "query": "select d.filename as source, m.content, round(m.similarity::numeric, 3) as similarity from match_knowledge_chunks($1::vector, $2::uuid, 5, 0.5) m join knowledge_documents d on d.id = m.document_id order by m.similarity desc",
-        "options": { "queryReplacement": "={{ $json.embeddingLiteral }}, {{ $(\"When Called\").item.json.clinicId }}" }
+        "options": { "queryReplacement": "={{ $json.embeddingLiteral }}, {{ $(\"When Called\").item.json.clinicId || \"80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4\" }}" }
       },
       "credentials": { "postgres": { "name": "V-Unite Supabase" } }
     },

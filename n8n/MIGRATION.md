@@ -105,3 +105,20 @@ grounding test (a policy you didn't upload → must refuse, not fabricate).
 - Supabase, migrations, and the Next.js app don't change — only the n8n layer + webhook URLs.
 - If Railway n8n gives you an API key (Settings → n8n API), paste results here and Claude Code
   can help debug via the API even though its MCP can't target this instance.
+
+## Lessons from the first migration (2026-08-31)
+
+- **Push workflows via the n8n UI "Import from File", not the public API.** The public API's
+  create/update strips node params it treats as defaults — `mode` (Set), `resource` (Postgres),
+  `inputSource` (Execute Workflow Trigger), `contentType` (HTTP) — which then breaks those nodes
+  in the editor.
+- **Credentials must be picked in the editor, per node.** Setting `credentials` by id via the
+  API leaves a reference that fails the execution-time permission check ("does not have access
+  to the credential"). Open each node, re-select its credential from the dropdown, save.
+- **Sub-workflow tools can't be tested standalone** — `TOOL-knowledge_search`'s trigger has no
+  `query`/`clinicId` unless the agent (or the manual "Test workflow" input form) supplies them.
+  The import JSON now has fallbacks (`$json.query || "test query"`, `clinicId || <demo clinic>`)
+  so a bare run still succeeds. Real verification is via WF-01: ask it a knowledge question.
+- On this instance `n8nVersion` is **2.35.3**; the predefined "Cohere API" credential type works
+  fine on the HTTP Request node (a 400 "one of texts... must be specified" is a body problem,
+  not auth).

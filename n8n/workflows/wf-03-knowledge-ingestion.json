@@ -88,7 +88,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"embed-english-v3.0\", \"input_type\": \"search_document\", \"embedding_types\": [\"float\"], \"texts\": {{ JSON.stringify($input.all().map(i => i.json.content)) }} }",
+        "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_document\", \"embedding_types\": [\"float\"], \"texts\": $input.all().map(i => i.json.content) } }}",
         "options": { "timeout": 60000 }
       },
       "credentials": { "cohereApi": { "name": "Cohere account" } }
