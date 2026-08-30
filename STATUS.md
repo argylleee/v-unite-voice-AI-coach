@@ -25,6 +25,25 @@ Update this when a milestone is actually done and verified — not when it's sta
 ## Phase 2 — n8n plumbing
 - [ ] Webhook auth working end to end (Next.js -> n8n -> Supabase -> response)
 
+### Phase 2 notes — built, pending live wiring
+- **n8n workflow "WF-01 Chat Coach"** created (id `asM0e5EkCsFc2pyx`, instance
+  `https://aldreisantua-n8n.duckdns.org`). No LLM yet: `POST /webhook/coach` (header-auth)
+  → Normalize → Validate (UUID clinicId + non-empty message) → Postgres per-treatment
+  metrics query on Supabase → Build Response → Respond. Explicit 400 (invalid) and 502
+  (DB error) branches.
+- **Next.js**: `POST /api/coach` route (`src/app/api/coach/route.ts`) — Zod-validates the
+  body (`src/lib/validation/chat.ts`), forwards server-side to the n8n webhook with
+  `Authorization: Bearer $N8N_WEBHOOK_SECRET` (`src/lib/n8n/client.ts`), maps failures to
+  400/500/502. 6 integration tests (`tests/integration/coach-route.test.ts`), n8n call mocked.
+- **Blocked on manual n8n setup** (secrets can't be created via API):
+  1. Create HTTP Header Auth credential "V-Unite n8n Webhook Secret" (Name `Authorization`,
+     Value `Bearer <secret>`), attach to the Chat Webhook node.
+  2. Create Postgres credential "V-Unite Supabase" (session pooler host, 5432, db `postgres`,
+     user `postgres.hhwkiimgjvdierjbjuxg`, password, SSL on), attach to Query Clinic Metrics.
+  3. Activate the workflow.
+  4. Put the same secret + `N8N_CHAT_WEBHOOK_URL=https://aldreisantua-n8n.duckdns.org/webhook/coach`
+     in `.env.local` (and later Vercel).
+
 ## Phase 3 — Structured AI agent
 - [ ] AI Agent node + customer_analytics, customer_lookup, kpi_calculator tools
 - [ ] "Which treatment needs attention?" works
