@@ -169,8 +169,24 @@ Update this when a milestone is actually done and verified — not when it's sta
       — Phase 8 Impeccable pass.
 
 ## Phase 7 — Sessions
-- [ ] Sessions + messages persisted
-- [ ] End-of-session summary + action plan generated and saved
+- [x] Sessions + messages persisted. Next.js routes: `POST /api/sessions` (create),
+      `GET /api/sessions?clinicId=` (list + message_count + has_summary),
+      `GET /api/sessions/[id]` (session + ordered messages). `/api/coach` now records the
+      user turn + the coach answer (+evidence) to `messages` when `sessionId` is passed
+      (best-effort — a persistence failure never drops the answer). `src/lib/db/sessions.ts`.
+- [x] End-of-session summary + action plan. `POST /api/sessions/[id]/end` loads the
+      transcript, calls **WF-04 Session Summary** (`Bqq7oTMo8YUAFOE4`, one DeepSeek call ->
+      `{ summary, key_findings[], action_plan[{action,priority}] }`), then persists to
+      `coaching_sessions` (ended_at/summary/key_findings/action_plan) + rebuilds the
+      `action_plans` rows.
+- [x] Verified end to end on Railway: create session -> 2 `/api/coach` turns -> 4 messages
+      stored -> end -> summary + 5 findings + 3 action items, all persisted (checked in
+      Supabase). 14 session route tests (DB + WF-04 mocked); 83 tests total.
+
+### Phase 7 notes
+- The `session_context` tool from `docs/AI_AGENT.md` (agent recalls the previous session) is
+  not wired — optional, deferred. Would need `sessionId` passed into WF-01 + a lookup tool.
+- `N8N_SUMMARY_WEBHOOK_URL` added to `.env.example` / `.env.local`.
 
 ## Phase 8 — UI (Impeccable)
 - [ ] `/impeccable init` run, PRODUCT.md + DESIGN.md committed

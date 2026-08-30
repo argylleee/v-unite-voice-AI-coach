@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "../../src/app/api/coach/route";
 import type { AgentResponse } from "../../src/lib/validation/agent-response";
+
+const recordTurn = vi.fn();
+vi.mock("@/lib/db/sessions", () => ({ recordTurn }));
+
+const { POST } = await import("../../src/app/api/coach/route");
 
 // Integration path: request shape -> Zod validation -> orchestration call to n8n ->
 // agent-response validation -> retry-once -> safe fallback. The n8n HTTP call is mocked
@@ -100,6 +104,33 @@ describe("POST /api/coach", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const res = await POST(makeRequest(VALID_BODY));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(AGENT_RESPONSE);
+  });
+
+  it("persists the turn when sessionId is present", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(AGENT_RESPONSE)));
+    const sessionId = "22222222-2222-2222-2222-222222222222";
+
+    const res = await POST(makeRequest({ ...VALID_BODY, sessionId }));
+
+    expect(res.status).toBe(200);
+    expect(recordTurn).toHaveBeenCalledWith(
+      sessionId,
+      VALID_BODY.message,
+      "chat",
+      expect.objectContaining({ answer: AGENT_RESPONSE.answer }),
+    );
+  });
+
+  it("still returns the answer if turn persistence throws", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(AGENT_RESPONSE)));
+    recordTurn.mockRejectedValueOnce(new Error("db down"));
+
+    const res = await POST(
+      makeRequest({ ...VALID_BODY, sessionId: "22222222-2222-2222-2222-222222222222" }),
+    );
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(AGENT_RESPONSE);

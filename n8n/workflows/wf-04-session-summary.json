@@ -1,0 +1,204 @@
+{
+  "name": "WF-04 Session Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "summary",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Summary Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "V-Unite n8n Webhook Secret"
+        }
+      },
+      "id": "2d1d82c5-e20f-44ea-8dc1-bea8f2fb7c20"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const t = ($json.body && $json.body.transcript) || [];\nconst parts = [];\nfor (let i = 0; i < t.length; i++) {\n  const m = t[i] || {};\n  parts.push(((m.role || \"?\") + \": \" + (m.content || \"\")));\n}\nreturn [{ json: { transcript_text: parts.join(\"\\n\\n\") } }];\n"
+      },
+      "name": "Build Transcript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "48b89249-4026-4787-87f6-4bdfd6ee06bf"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.transcript_text }}",
+        "hasOutputParser": false,
+        "options": {
+          "systemMessage": "You summarize a coaching conversation between an aesthetic-clinic owner and an AI business coach.\nGiven the transcript, produce a concise end-of-session wrap-up.\n\nRespond with ONLY a raw JSON object (no code fences, no prose before or after) with these keys:\n- summary: 2-4 sentences on what was discussed and concluded.\n- key_findings: array of 2-5 short strings - the concrete facts or numbers that were established.\n- action_plan: array of 2-5 objects { \"action\": \"<imperative next step>\", \"priority\": \"high\" | \"medium\" | \"low\" }.\n\nBase everything only on the transcript. Do not invent metrics, policies, or recommendations that were not discussed. If the conversation was too short to summarize, say so in 'summary' and return empty arrays.",
+          "maxIterations": 1,
+          "enableStreaming": false
+        }
+      },
+      "name": "Summarizer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -460,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "id": "7cc9c298-95ae-4c4c-82dc-2f2c6953051f"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "deepseek-chat",
+          "cachedResultName": "deepseek-chat"
+        },
+        "options": {}
+      },
+      "name": "DeepSeek Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -260,
+        180
+      ],
+      "credentials": {
+        "openAiApi": {
+          "name": "DeepSeek"
+        }
+      },
+      "id": "e4fef7db-d96a-4a82-a95e-b91662144707"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "let raw=($json.output||$json.text||$json.agent_output||'').toString().trim();\nraw=raw.replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();\nlet obj=null;try{obj=JSON.parse(raw);}catch(e){const m=raw.match(/\\{[\\s\\S]*\\}/);if(m){try{obj=JSON.parse(m[0]);}catch(_){}}}\nif(!obj||typeof obj!=='object')obj={};\nconst summary=(typeof obj.summary==='string'&&obj.summary.trim())?obj.summary:(raw||'Session summary unavailable.');\nconst kf=Array.isArray(obj.key_findings)?obj.key_findings.filter(x=>typeof x==='string'):[];\nlet ap=Array.isArray(obj.action_plan)?obj.action_plan:[];\nap=ap.map(x=>({action:String((x&&x.action)||x||'').trim(),priority:['high','medium','low'].includes(x&&x.priority)?x.priority:'medium'})).filter(x=>x.action);\nreturn [{json:{summary:summary,key_findings:kf,action_plan:ap}}];"
+      },
+      "name": "Parse Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "c68fb328-a6f5-4a54-8ae1-db5b8d3504a5"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond Summary",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "41520f1b-c383-47b7-8630-0341d0c4dfe6"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"summary_failed\" } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -240,
+        180
+      ],
+      "id": "7702b5f4-6066-408d-b624-37df3753db81"
+    }
+  ],
+  "connections": {
+    "Summary Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Transcript": {
+      "main": [
+        [
+          {
+            "node": "Summarizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarizer": {
+      "main": [
+        [
+          {
+            "node": "Parse Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarizer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

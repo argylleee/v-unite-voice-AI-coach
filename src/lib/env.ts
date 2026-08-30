@@ -32,3 +32,11 @@ export function n8nVoiceConfig(): { url: string; secret: string } {
     secret: required("N8N_WEBHOOK_SECRET"),
   };
 }
+
+/** n8n session-summary webhook config (WF-04). */
+export function n8nSummaryConfig(): { url: string; secret: string } {
+  return {
+    url: required("N8N_SUMMARY_WEBHOOK_URL"),
+    secret: required("N8N_WEBHOOK_SECRET"),
+  };
+}

@@ -1,5 +1,6 @@
 import { n8nChatConfig } from "@/lib/env";
 import { callN8nWebhook, N8nError } from "@/lib/n8n/client";
+import { recordTurn } from "@/lib/db/sessions";
 import {
   FALLBACK_RESPONSE,
   parseAgentResponse,
@@ -49,6 +50,17 @@ export async function POST(request: Request): Promise<Response> {
       console.error("[api/coach] agent response invalid twice — returning safe fallback");
       return Response.json({ ...FALLBACK_RESPONSE, degraded: true }, { status: 200 });
     }
+
+    // Persist the turn if this request belongs to a session. Best-effort: a persistence
+    // failure must not drop the coaching answer the user is waiting on.
+    if (parsed.data.sessionId) {
+      try {
+        await recordTurn(parsed.data.sessionId, parsed.data.message, parsed.data.mode, result);
+      } catch (err) {
+        console.error("[api/coach] recordTurn failed:", err);
+      }
+    }
+
     return Response.json(result, { status: 200 });
   } catch (err) {
     const status = err instanceof N8nError ? err.status : undefined;
