@@ -52,16 +52,29 @@ Update this when a milestone is actually done and verified — not when it's sta
 - `.env.local` now has `N8N_CHAT_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` (also needed in Vercel).
 
 ## Phase 3 — Structured AI agent
-- [x] Next.js side: `AgentResponseSchema` + `/api/coach` validates the agent response,
-      retries once on malformed JSON, then returns a safe `degraded` fallback. 9 integration
+- [x] Next.js: `AgentResponseSchema` + `/api/coach` validates the agent response, retries
+      once on malformed JSON, safe `degraded` fallback, 45s upstream timeout. 9 integration
       tests. (`src/lib/validation/agent-response.ts`, `src/types/agent-response.ts`)
-- [x] n8n build guide written: `n8n/PHASE_3_BUILD.md` — exact node config, tool SQL, system
-      prompt, verify checklist. Node types checked against the live instance.
-- [ ] n8n side (user-built): AI Agent node on WF-01 + `customer_analytics` /
-      `customer_lookup` (Postgres Tool) + `kpi_calculator` (Code Tool)
-- [ ] "Which treatment needs attention?" → names CoolSculpting, cites conversion %
-- [ ] "Which customers need follow-up?" → uses customer_lookup, cites the lapsed cluster
-- [ ] "Where are rebooking rates weak?" → names HydraFacial vs Botox
+- [x] n8n build guide: `n8n/PHASE_3_BUILD.md`
+- [x] n8n side (user-built on WF-01): AI Coach Agent + Groq Chat Model
+      (`llama-3.3-70b-versatile`) + Structured Output Parser + tools: `Clinic-wide Metrics`
+      (Postgres Tool, per-treatment aggregate), `customer_lookup` (Postgres Tool, lapsed
+      filter), `kpi_calculator` (Code Tool). Published.
+- [x] "Which treatment needs attention?" → CoolSculpting, 27.6% conversion, 3 evidence items
+- [x] "Which customers need follow-up?" → customer_lookup @ ≥90 days, 38 lapsed, named rows
+- [x] "Where are rebooking rates weak?" → HydraFacial 10% vs Botox 81.8%, exact ratios
+      (n8n executions 815 / 818 / 820; also verified through `/api/coach`)
+
+### Phase 3 notes
+- Verified against the self-hosted n8n host, which is intermittently unavailable (Cloudflare
+  502 / "database not ready" 503 from the origin, ~1–4 min cold turns). When it's up, all
+  three questions round-trip correctly through `/api/coach`; when it hiccups the route fails
+  fast with 502 `upstream_error` (correct behaviour). Latency should be a non-issue on
+  V-Unite's instance — revisit for the 12% responsiveness line after migration.
+- Lookup answers give approximate sub-counts (LLM over ~200 rows); exact per-treatment counts
+  are in `customer_analytics`. Tighten the prompt in Phase 5 if needed.
+- TODO: export WF-01 JSON to `n8n/workflows/wf-01-chat-coach.json` and commit (Phase 10
+  migration artifact).
 
 ## Phase 4 — RAG
 - [ ] PDF ingestion

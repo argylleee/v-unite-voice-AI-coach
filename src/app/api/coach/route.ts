@@ -61,11 +61,21 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
+// A coaching turn is an LLM reason-pass + tool calls + a format pass — seconds, not sub-second.
+// Generous enough that a warm agent turn never trips it; short enough that a wedged upstream
+// still fails fast-ish. Network/timeout failures are NOT retried (only schema-invalid output is).
+const COACH_TIMEOUT_MS = 45_000;
+
 async function callAndValidate(
   config: { url: string; secret: string },
   payload: unknown,
 ): Promise<AgentResponse | null> {
-  const raw = await callN8nWebhook({ url: config.url, secret: config.secret, payload });
+  const raw = await callN8nWebhook({
+    url: config.url,
+    secret: config.secret,
+    payload,
+    timeoutMs: COACH_TIMEOUT_MS,
+  });
   const candidate = unwrapAgentPayload(raw);
   const parsed = AgentResponseSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
