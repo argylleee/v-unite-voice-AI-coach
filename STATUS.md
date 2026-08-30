@@ -22,27 +22,34 @@ Update this when a milestone is actually done and verified — not when it's sta
   the Supabase **session pooler** string (port 5432, `aws-0-*.pooler.supabase.com`) — the
   direct-connection host is IPv6-only and won't resolve on most networks.
 
-## Phase 2 — n8n plumbing
-- [ ] Webhook auth working end to end (Next.js -> n8n -> Supabase -> response)
+## Phase 0 — Housekeeping
+- [ ] Asked Emman: OK to build on self-hosted n8n and migrate before submission? (docs/N8N.md)
 
-### Phase 2 notes — built, pending live wiring
-- **n8n workflow "WF-01 Chat Coach"** created (id `asM0e5EkCsFc2pyx`, instance
-  `https://aldreisantua-n8n.duckdns.org`). No LLM yet: `POST /webhook/coach` (header-auth)
-  → Normalize → Validate (UUID clinicId + non-empty message) → Postgres per-treatment
-  metrics query on Supabase → Build Response → Respond. Explicit 400 (invalid) and 502
-  (DB error) branches.
-- **Next.js**: `POST /api/coach` route (`src/app/api/coach/route.ts`) — Zod-validates the
-  body (`src/lib/validation/chat.ts`), forwards server-side to the n8n webhook with
+## Phase 2 — n8n plumbing
+- [x] "WF-01 Chat Coach" skeleton built (webhook -> validate -> query -> respond, no LLM yet)
+- [x] Header Auth + Postgres credentials wired to the workflow; workflow activated
+- [x] Webhook auth working end to end (Next.js -> n8n -> Supabase -> response)
+
+### Phase 2 notes — verified live
+- **n8n workflow "WF-01 Chat Coach"** (id `asM0e5EkCsFc2pyx`, instance
+  `https://aldreisantua-n8n.duckdns.org`, active). No LLM: `POST /webhook/coach` (header-auth)
+  → Normalize → Validate (UUID clinicId + non-empty message) → single-row aggregate query on
+  Supabase → Build Response → Respond. Explicit 400 (invalid input) and 502 (DB error) branches.
+  Credentials: Header Auth `VE5YkVkmlyAhvZUK`, Postgres `A56iVK09BB1EFdbH` (SSL: ignore-issues,
+  required for Supabase's pooler cert).
+- **Next.js**: `POST /api/coach` (`src/app/api/coach/route.ts`) — Zod-validates the body
+  (`src/lib/validation/chat.ts`), forwards server-side to the n8n webhook with
   `Authorization: Bearer $N8N_WEBHOOK_SECRET` (`src/lib/n8n/client.ts`), maps failures to
   400/500/502. 6 integration tests (`tests/integration/coach-route.test.ts`), n8n call mocked.
-- **Blocked on manual n8n setup** (secrets can't be created via API):
-  1. Create HTTP Header Auth credential "V-Unite n8n Webhook Secret" (Name `Authorization`,
-     Value `Bearer <secret>`), attach to the Chat Webhook node.
-  2. Create Postgres credential "V-Unite Supabase" (session pooler host, 5432, db `postgres`,
-     user `postgres.hhwkiimgjvdierjbjuxg`, password, SSL on), attach to Query Clinic Metrics.
-  3. Activate the workflow.
-  4. Put the same secret + `N8N_CHAT_WEBHOOK_URL=https://aldreisantua-n8n.duckdns.org/webhook/coach`
-     in `.env.local` (and later Vercel).
+- **Live verification (2026-08-30)**:
+  - `curl /api/coach` valid body → 200, real per-treatment metrics for the seeded clinic
+    (customerCount 100; CoolSculpting 8/29 purchases vs Botox 22/28).
+  - bad UUID / empty message → 400 with Zod field errors, n8n never called.
+  - malformed JSON → 400. n8n prod URL with no bearer header → 403.
+  - n8n executions 802 (success), 803 (invalid → 400 branch), 798 (DB error → 502 branch).
+- **Migration to V-Unite n8n later**: re-create credentials + repoint webhook base URL; the
+  workflow JSON itself is portable. Tracked under Phase 0.
+- `.env.local` now has `N8N_CHAT_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` (also needed in Vercel).
 
 ## Phase 3 — Structured AI agent
 - [ ] AI Agent node + customer_analytics, customer_lookup, kpi_calculator tools

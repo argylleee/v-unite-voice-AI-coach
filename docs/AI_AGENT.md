@@ -15,8 +15,10 @@ neither. That decision-making is what the 18% Agent Architecture & Reasoning sco
 
 ## Tools
 
-Five tools, implemented as n8n sub-workflows exposed to the agent via the `Call n8n Workflow Tool`
-node (see `docs/N8N.md`). Do not add a sixth without a concrete requirement driving it.
+Five tools, exposed to the `AI Agent` node either as a direct `Postgres Tool` node (simple
+query/RPC tools) or a `Call n8n Workflow Tool` sub-workflow (multi-step logic) — see
+`docs/N8N.md` for which pattern fits which tool and why. Do not add a sixth tool without a
+concrete requirement driving it.
 
 ### `customer_analytics`
 Aggregate business metrics: conversion rate, rebooking rate, average spend, treatment/provider
@@ -82,30 +84,41 @@ The coach is not a generic assistant. Its instructions must establish:
 ## Model and cost strategy (the $1 budget is a real constraint, not a formality)
 
 Make the provider/model swappable via environment variables (`LLM_PROVIDER`, `LLM_MODEL`,
-`EMBEDDING_MODEL`) — never hardcode a model string in application or workflow code. That said,
-"pick something cheap" isn't specific enough given how little budget there is across a multi-day
-build-and-demo cycle; use this as the actual starting point:
+`EMBEDDING_MODEL`) — never hardcode a model string in application or workflow code.
 
-- **Chat/reasoning model:** a small, cheap tool-calling-capable model — e.g. a "mini"/"flash"/
-  "nano" tier model rather than a frontier one. As of writing, models in this class run roughly
-  $0.20–$1.00 per 1M input tokens and $1–$5 per 1M output tokens. A single coaching turn (system
-  prompt + tool schemas + retrieved evidence + short answer) is on the order of 1,500–3,000
-  tokens total. At those rates, $1 of credit covers **several hundred full coaching turns** —
-  comfortable for development iteration plus a live demo, as long as you're not looping the agent
-  through multiple redundant LLM calls per question (see below).
+**Two different budgets are in play, don't conflate them.** The challenge's $1 credit is almost
+certainly tied to a credential inside whatever n8n instance Emman provisions (see `docs/N8N.md`
+decision on the self-hosted-first plan) — so development against the self-hosted instance runs
+against your own Groq/Gemini credentials, not the $1 cap. That's good for iterating freely during
+development, but means the $1-budget question only really bites once workflows are migrated to
+V-Unite's instance for final submission/demo. Don't assume dev-time cost is representative —
+re-check actual spend once running against the real challenge credit.
+
+- **Chat/reasoning model — start with what's already configured.** Groq and Google Gemini
+  credentials already exist on the development n8n instance (`docs/N8N.md`). Groq specifically is
+  worth prioritizing: it's known for unusually cheap, low-latency inference, which helps both this
+  budget and the 12% responsiveness score. Confirm current Groq model lineup/pricing and tool-
+  calling support before committing (model lineups on Groq change), and only introduce a paid
+  OpenAI/Anthropic-style credential if the challenge's specific $1 credit is tied to one of those
+  providers instead once Emman provisions access.
+- **General sizing (useful once you know the real per-token rate):** models in the cheap "mini"/
+  "flash"/"nano" tier commonly run roughly $0.20–$1.00 per 1M input tokens and $1–$5 per 1M output
+  tokens. A single coaching turn (system prompt + tool schemas + retrieved evidence + short
+  answer) is on the order of 1,500–3,000 tokens total — at those rates $1 covers several hundred
+  full turns, comfortable for a live demo as long as calls per turn stay minimal (see below).
 - **Embedding model:** pick the cheapest embedding model available to you — embeddings are
-  roughly two orders of magnitude cheaper than generation (fractions of a cent per 1M tokens is
-  typical), so this is not where the budget goes. Set `knowledge_chunks.embedding`'s vector
-  dimension in `supabase/migrations/0002_pgvector_and_rag.sql` to match whichever model you pick,
-  before the first ingestion run.
+  roughly two orders of magnitude cheaper than generation, so this is not where the budget goes.
+  Set `knowledge_chunks.embedding`'s vector dimension in
+  `supabase/migrations/0002_pgvector_and_rag.sql` to match whichever model you pick, before the
+  first ingestion run.
 - **Minimize calls per turn.** One request should mean: agent reasons once about which tool(s) it
   needs, calls them, then makes **one** final reasoning call over the combined evidence — not a
   loop of `LLM -> search -> LLM -> search -> LLM`. Don't add a separate LLM call to "summarize the
   summary" unless a requirement actually needs it (the end-of-session summary is the one place
-  this is required — see `docs/RAG.md` / session summary prompt).
-- Re-verify actual current pricing for whatever provider Emman actually issues the credit against
-  before locking in a model — the numbers above are for sizing the budget, not a specific vendor
-  commitment.
+  this is required).
+- Re-verify actual current pricing for whichever provider ends up backing the real $1 credit
+  before locking in a model for the submitted version — the numbers above are for sizing, not a
+  locked-in vendor commitment.
 
 ## Hallucination / grounding rules
 

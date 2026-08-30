@@ -17,11 +17,12 @@ n8n Webhook  ->  validate  ->  load session  ->  AI Agent node
                                                      |
                           +--------------------------+--------------------------+
                           |                          |                          |
-                 Call n8n Workflow Tool     Call n8n Workflow Tool     Call n8n Workflow Tool
-                 customer_analytics          knowledge_search           kpi_calculator
+                  Postgres Tool /              Postgres Tool               Call n8n Workflow Tool
+              Call n8n Workflow Tool           (match_knowledge_chunks       kpi_calculator
+              customer_analytics /                    RPC)
+              customer_lookup
                           |                          |                          |
                      Supabase (SQL)             Supabase pgvector          in-workflow code
-                                                (match_documents RPC)
                           +--------------------------+--------------------------+
                                                      |
                                             LLM reasoning (agent)
@@ -46,9 +47,10 @@ component, never the anon key exposed to the browser. See `docs/SECURITY.md`.
 **n8n** — receives requests, validates them, loads session context, runs the AI Agent, executes
 tools, performs RAG retrieval, calls the LLM, calls Fish Audio, persists conversations, handles
 errors. Everything that decides *what the coach does* lives here. See `docs/N8N.md` for the
-concrete node types (n8n ships a native `AI Agent` / `Tools Agent` node plus a `Call n8n Workflow
-Tool` node for wiring sub-workflows in as callable tools — use those, don't hand-roll agent
-orchestration with generic HTTP/IF nodes).
+concrete node types (n8n ships a native `AI Agent` node, a `Postgres Tool` node that can attach
+directly to it for simple queries/RPC calls, and a `Call n8n Workflow Tool` node for wiring
+multi-step sub-workflows in as callable tools — use those, don't hand-roll agent orchestration
+with generic HTTP/IF nodes).
 
 **Supabase** — source of truth for `clinics`, `customers`, `knowledge_documents`,
 `knowledge_chunks`, `coaching_sessions`, `messages`, `action_plans`. pgvector lives in the same
@@ -108,7 +110,8 @@ security bug, so there's no reason to skip it even under time pressure.
 `LLM_PROVIDER` / `LLM_MODEL` / `EMBEDDING_MODEL` are environment variables, never hardcoded. See
 `docs/AI_AGENT.md` for the concrete model recommendation and the token-budget math — the $1 cap is
 tight enough across a multi-day build-and-demo cycle that this needs a number, not just a
-principle.
+principle. Groq and Google Gemini credentials already exist on the development n8n instance — see
+decision #6 — and are the leading real candidates.
 
 ### 4. Deployment gating: Vercel Deployment Checks, configured explicitly
 
@@ -126,6 +129,20 @@ visual polish by eye (expensive, subjective, easy to over-invest in given UI is 
 rubric), Impeccable's `/impeccable init` → build → `/audit`/`/critique`/`/polish` loop gives a
 fast, checklist-driven way to avoid generic "AI slop" output without burning disproportionate
 time on it.
+
+### 6. n8n instance: build on the self-hosted instance, migrate before submission (decided 2026-08-30)
+
+The brief provisions n8n access through Emman/V-Unite, likely bundled with the $1 LLM credit and
+possibly for evaluator visibility into your workflows. A self-hosted instance
+(`https://aldreisantua-n8n.duckdns.org`) already has real progress on it (a Phase-2 "WF-01 Chat
+Coach" skeleton, plus Groq/Gemini credentials — see `docs/N8N.md`), so development continues there
+rather than blocking on Emman granting access first. Before final submission: export each
+workflow as JSON and import it into whatever instance V-Unite provides, re-pointing credentials
+and webhook URLs. **Ask Emman explicitly whether building on your own instance and migrating is
+acceptable** — don't find out it isn't on the last day. Workflow build ownership: you build these
+by hand in the n8n editor (not delegated to an AI tool end-to-end) — the rubric scores your
+ability to explain the agent/tool architecture live, which is best served by having actually built
+it yourself, with review/troubleshooting support via MCP.
 
 ## Constraints (apply throughout)
 

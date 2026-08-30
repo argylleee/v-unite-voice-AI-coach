@@ -89,7 +89,13 @@ don't silently override it.
    demoing." See `docs/DEPLOYMENT.md` for the exact dashboard configuration — this satisfies
    requirement #16 ("a deployment/build should fail when required checks fail") for real, rather
    than as an aspiration.
-5. **UI is built with the Impeccable design skill, not free-hand Tailwind guessing.** See
+5. **n8n instance: build on the self-hosted instance now, migrate to V-Unite's before submission**
+   (decided 2026-08-30). Real progress already exists there (a Phase-2 "WF-01 Chat Coach"
+   skeleton, Groq/Gemini credentials) — see `docs/N8N.md` and `docs/ARCHITECTURE.md` decision #6.
+   Ask Emman to confirm this is acceptable, early. **You build the n8n workflows yourself, by
+   hand, in the n8n editor** — not delegated end-to-end to an AI tool, since the rubric scores
+   your ability to explain the agent architecture live.
+6. **UI is built with the Impeccable design skill, not free-hand Tailwind guessing.** See
    `docs/UI_DESIGN.md` and `.claude/skills/ui-design/SKILL.md`. This is a hard rule, not a
    suggestion — do not ship a screen that hasn't gone through Impeccable's `/impeccable init` →
    build → `/audit` / `/critique` / `/polish` loop.
