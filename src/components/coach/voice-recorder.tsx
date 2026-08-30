@@ -93,8 +93,8 @@ export function VoiceRecorder({
         className={[
           "block h-2.5 w-2.5",
           recording
-            ? "rounded-[1px] bg-current"
-            : "rounded-full bg-[var(--danger-ink)]",
+            ? "rounded-[1px] bg-current [animation:vu-pulse_1.2s_ease-in-out_infinite]"
+            : "rounded-full border-[1.5px] border-current",
         ].join(" ")}
       />
       {recording ? (

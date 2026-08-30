@@ -8,7 +8,15 @@ import {
   getSession,
   type SessionDetail,
 } from "@/lib/client/api";
-import { Notice, PageHeader, PriorityTag, Section } from "@/components/chart";
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  Notice,
+  PageHeader,
+  PriorityTag,
+  Screen,
+  Section,
+} from "@/components/chart";
 
 export function SessionDetailView({ id }: { id: string }) {
   const [detail, setDetail] = useState<SessionDetail | null>(null);
@@ -53,16 +61,13 @@ export function SessionDetailView({ id }: { id: string }) {
             : undefined
         }
         actions={
-          <Link
-            href="/sessions"
-            className="rounded-[3px] border border-[var(--rule-strong)] bg-[var(--paper-raised)] px-3 py-1.5 text-sm text-[var(--ink-2)] hover:border-[var(--accent)]"
-          >
+          <Link href="/sessions" className={BTN_GHOST}>
             All sessions
           </Link>
         }
       />
 
-      <div className="mx-auto max-w-[var(--measure)] space-y-8 px-5 py-6 md:px-8">
+      <Screen className="space-y-8">
         {error ? <Notice title="Problem">{error}</Notice> : null}
         {!detail && !error ? <p className="text-sm text-[var(--ink-3)]">Loading…</p> : null}
 
@@ -117,7 +122,7 @@ export function SessionDetailView({ id }: { id: string }) {
                   type="button"
                   onClick={summarise}
                   disabled={ending || detail.messages.length === 0}
-                  className="rounded-[3px] bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--paper-raised)] hover:bg-[var(--accent-ink)] disabled:opacity-40"
+                  className={BTN_PRIMARY}
                 >
                   {ending ? "Summarising…" : "Summarise now"}
                 </button>
@@ -145,7 +150,7 @@ export function SessionDetailView({ id }: { id: string }) {
             </Section>
           </>
         ) : null}
-      </div>
+      </Screen>
     </div>
   );
 }

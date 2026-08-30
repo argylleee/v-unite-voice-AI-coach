@@ -10,7 +10,7 @@ import {
   endSession,
   type CoachApiResponse,
 } from "@/lib/client/api";
-import { Notice, PageHeader } from "@/components/chart";
+import { BTN_GHOST, GUTTER, Notice, PageHeader } from "@/components/chart";
 import { CoachAnswer } from "./coach-answer";
 import { SuggestedQuestions } from "./suggested-questions";
 import { Thinking } from "./thinking";
@@ -123,7 +123,7 @@ export function CoachView() {
               type="button"
               onClick={finish}
               disabled={ending || busy}
-              className="rounded-[3px] border border-[var(--rule-strong)] bg-[var(--paper-raised)] px-3 py-1.5 text-sm text-[var(--ink-2)] hover:border-[var(--accent)] hover:text-[var(--accent-ink)] disabled:opacity-40"
+              className={BTN_GHOST}
             >
               {ending ? "Summarising…" : "End & summarise"}
             </button>
@@ -131,7 +131,8 @@ export function CoachView() {
         }
       />
 
-      <div ref={feedRef} className="flex-1 overflow-y-auto px-5 py-6 md:px-8">
+      <div ref={feedRef} className={`flex-1 overflow-y-auto ${GUTTER} py-7 md:py-9`}>
+        <div className="mx-auto max-w-[var(--content-wide)]">
         {turns.length === 0 && !busy ? (
           <SuggestedQuestions onPick={sendText} />
         ) : (
@@ -169,23 +170,25 @@ export function CoachView() {
             {busy ? <Thinking phase={phase} /> : null}
           </div>
         )}
+        </div>
       </div>
 
-      <div className="border-t border-[var(--rule)] bg-[var(--paper-raised)] px-5 py-3 md:px-8">
-        {error ? (
-          <div className="mb-3">
-            <Notice tone="danger" title="That didn’t go through">
-              {error}
-            </Notice>
-          </div>
-        ) : null}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void sendText(draft);
-          }}
-          className="flex items-end gap-2"
-        >
+      <div className={`border-t border-[var(--rule)] bg-[var(--paper-raised)] ${GUTTER} py-3.5`}>
+        <div className="mx-auto max-w-[var(--content-wide)]">
+          {error ? (
+            <div className="mb-3">
+              <Notice tone="danger" title="That didn’t go through">
+                {error}
+              </Notice>
+            </div>
+          ) : null}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendText(draft);
+            }}
+            className="flex items-end gap-2"
+          >
           <label htmlFor="coach-input" className="sr-only">
             Ask the coach
           </label>
@@ -202,17 +205,18 @@ export function CoachView() {
             rows={1}
             disabled={busy}
             placeholder="Ask about a treatment, a customer segment, or a policy…"
-            className="min-h-[2.6rem] flex-1 resize-none rounded-[3px] border border-[var(--rule-strong)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--ink-3)] focus:border-[var(--accent)] disabled:opacity-50"
+            className="min-h-[2.75rem] flex-1 resize-none rounded-[3px] border border-[var(--rule-strong)] bg-[var(--paper-raised)] px-3 py-2 text-sm leading-relaxed text-[var(--ink)] placeholder:text-[var(--ink-3)] focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
           />
           <VoiceRecorder disabled={busy} onRecorded={sendVoice} />
           <button
             type="submit"
             disabled={busy || draft.trim().length === 0}
-            className="shrink-0 rounded-[3px] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[var(--paper-raised)] hover:bg-[var(--accent-ink)] disabled:opacity-40"
+            className="shrink-0 rounded-[3px] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-ink)] disabled:opacity-40"
           >
             Ask
           </button>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

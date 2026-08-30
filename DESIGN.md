@@ -21,8 +21,12 @@ set in mono so it reads as data.
 - **Type:** Public Sans (a records grotesk) for all prose; Spline Sans Mono for every figure,
   unit, source label, ID, priority tag, and section divider. No Inter anywhere.
 - **Structure:** sections are separated by tracked uppercase hairline dividers
-  (`.record-label`), never by cards or shadows. One left binder rail (Coach / Knowledge /
-  Sessions); content column capped at `--measure` (68ch).
+  (`.record-label`), never by cards or shadows. A fixed 14rem left binder rail on the same
+  paper (right hairline only). The page body is a **centred chart sheet** — one column,
+  `mx-auto`, capped at `--content` (44rem) for prose / `--content-wide` (50rem) for lists,
+  answers, and the composer. The page header shares the sheet's max-width and the `GUTTER`
+  padding so its bottom rule and the body align. Prose paragraphs cap tighter at `--measure`
+  (64ch).
 - **Motion:** almost none. A single `vu-pulse` opacity blink on the "processing" status dot and
   a scanning bar in the thinking indicator. Full `prefers-reduced-motion` shutoff.
 
@@ -47,8 +51,9 @@ no dark theme by design decision — timed MVP, one surface).
 | `--warn-ink` / `--warn-soft` | `#7c5410` / `#f4ead1` | `processing`, `medium` priority, partial-answer notice |
 | `--danger-ink` / `--danger-soft` | `#8c3a33` / `#f2ded9` | `failed`, `high` priority, error notice |
 | `--focus` | `#0f6b5f` | `:focus-visible` outline |
-| `--rail-w` | `15rem` | binder rail width (md+) |
-| `--measure` | `68ch` | reading-column cap |
+| `--rail-w` | `14rem` | binder rail width (md+) |
+| `--content` / `--content-wide` | `44rem` / `50rem` | page sheet cap (prose / lists+answers+composer) |
+| `--measure` | `64ch` | prose-paragraph cap inside the sheet |
 | `--font-sans` | Public Sans stack | body |
 | `--font-mono` | Spline Sans Mono stack | all data |
 
@@ -59,6 +64,13 @@ Fonts are loaded via `next/font/google` in `src/app/layout.tsx` and exposed as
 
 `src/components/chart.tsx` — the shared chart primitives:
 
+- **`Screen({ width?, children })`** — the centred page-body column. `width="prose"` (default,
+  `--content`) or `"wide"` (`--content-wide`). Applies `GUTTER` + vertical rhythm. Every screen's
+  body goes in one.
+- **`GUTTER`** — the shared horizontal padding string (`px-6 md:px-10`) used by both `Screen`
+  and `PageHeader` so their edges line up.
+- **`BTN_PRIMARY` / `BTN_GHOST`** — the two button treatments (solid teal / bordered-on-paper).
+  Use these rather than re-styling a button inline.
 - **`Section({ label, aside?, children })`** — a ruled record section: `border-t`, a
   `.record-label` heading, optional right-aligned `aside` (e.g. "3 cited"). This is the only
   sanctioned way to group content. Do not wrap it in a card.

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ApiError, listSessions, type SessionListItem } from "@/lib/client/api";
-import { EmptyState, Notice, PageHeader } from "@/components/chart";
+import { BTN_PRIMARY, EmptyState, Notice, PageHeader, Screen } from "@/components/chart";
 
 export function SessionsView() {
   const [sessions, setSessions] = useState<SessionListItem[] | null>(null);
@@ -21,18 +21,15 @@ export function SessionsView() {
     <div className="min-h-[100dvh]">
       <PageHeader
         title="Sessions"
-        intro="Every coaching conversation is kept. End one to get a summary and a prioritised action plan."
+        intro="Every conversation is kept. End one to get a summary and a prioritised action plan."
         actions={
-          <Link
-            href="/coach"
-            className="rounded-[3px] bg-[var(--accent)] px-3 py-1.5 text-sm font-semibold text-[var(--paper-raised)] hover:bg-[var(--accent-ink)]"
-          >
+          <Link href="/coach" className={BTN_PRIMARY}>
             New session
           </Link>
         }
       />
 
-      <div className="mx-auto max-w-[var(--measure)] px-5 py-6 md:px-8">
+      <Screen width="wide">
         {error ? <Notice title="Couldn’t load sessions">{error}</Notice> : null}
 
         {sessions === null && !error ? (
@@ -71,7 +68,7 @@ export function SessionsView() {
             ))}
           </ul>
         )}
-      </div>
+      </Screen>
     </div>
   );
 }

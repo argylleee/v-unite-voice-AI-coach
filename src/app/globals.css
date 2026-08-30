@@ -47,8 +47,10 @@
   --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
     Consolas, monospace;
 
-  --rail-w: 15rem;
-  --measure: 68ch;
+  --rail-w: 14rem;
+  --measure: 64ch;
+  --content: 44rem;
+  --content-wide: 50rem;
 }
 
 * {

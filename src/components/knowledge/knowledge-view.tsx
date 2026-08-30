@@ -7,7 +7,14 @@ import {
   uploadDocument,
 } from "@/lib/client/api";
 import type { KnowledgeDocument } from "@/lib/validation/knowledge";
-import { EmptyState, Notice, PageHeader, StatusTag } from "@/components/chart";
+import {
+  BTN_GHOST,
+  EmptyState,
+  Notice,
+  PageHeader,
+  Screen,
+  StatusTag,
+} from "@/components/chart";
 
 const ACCEPT = ".pdf,.txt";
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -71,7 +78,7 @@ export function KnowledgeView() {
         intro="Add the clinic’s own documents — SOPs, consultation scripts, pricing, policies. The coach retrieves from these and cites the source."
       />
 
-      <div className="mx-auto max-w-[var(--measure)] space-y-6 px-5 py-6 md:px-8">
+      <Screen width="wide" className="space-y-6">
         {error ? <Notice title="Upload problem">{error}</Notice> : null}
 
         <div
@@ -87,23 +94,25 @@ export function KnowledgeView() {
             if (f) void upload(f);
           }}
           className={[
-            "border border-dashed px-6 py-8 text-center transition-colors",
+            "flex flex-wrap items-center justify-between gap-4 border border-dashed px-5 py-4 transition-colors",
             dragging
               ? "border-[var(--accent)] bg-[var(--accent-soft)]"
               : "border-[var(--rule-strong)] bg-[var(--paper-raised)]",
           ].join(" ")}
         >
-          <p className="text-sm text-[var(--ink)]">
-            {busy ? "Uploading and processing…" : "Drop a PDF or TXT here"}
-          </p>
-          <p className="mt-1 text-xs text-[var(--ink-3)]">
-            up to 4 MB · extracted, chunked, and embedded on upload
-          </p>
+          <div>
+            <p className="text-sm text-[var(--ink)]">
+              {busy ? "Uploading and processing…" : "Drop a PDF or TXT here"}
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--ink-3)]">
+              up to 4 MB · extracted, chunked, and embedded on upload
+            </p>
+          </div>
           <button
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            className="mt-3 rounded-[3px] border border-[var(--rule-strong)] bg-[var(--paper)] px-3 py-1.5 text-sm text-[var(--ink-2)] hover:border-[var(--accent)] hover:text-[var(--accent-ink)] disabled:opacity-40"
+            className={BTN_GHOST}
           >
             Choose file
           </button>
@@ -149,7 +158,7 @@ export function KnowledgeView() {
             )}
           </div>
         </section>
-      </div>
+      </Screen>
     </div>
   );
 }
