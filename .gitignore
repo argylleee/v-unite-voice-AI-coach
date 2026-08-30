@@ -24,3 +24,13 @@ test-results/
 .DS_Store
 *.log
 .vercel
+/ex.json
+/f_*.json
+/d_*.json
+/m_*.json
+/raw*.json
+/w.json
+/w.put.json
+/wf*.json
+/t.json
+/t.put.json
