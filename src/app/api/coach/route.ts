@@ -1,13 +1,19 @@
 import { n8nChatConfig } from "@/lib/env";
 import { callN8nWebhook, N8nError } from "@/lib/n8n/client";
+import {
+  AgentResponseSchema,
+  FALLBACK_RESPONSE,
+  unwrapAgentPayload,
+  type AgentResponse,
+} from "@/lib/validation/agent-response";
 import { ChatRequestSchema } from "@/lib/validation/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // POST /api/coach — validates the request, forwards it server-side to the n8n chat webhook
-// (bearer-secret protected), and returns n8n's JSON. No AI orchestration lives here
-// (docs/ARCHITECTURE.md); Phase 2 proves this wire before the agent is added in Phase 3.
+// (bearer-secret protected), validates the agent's structured response, and returns it.
+// No AI orchestration lives here (docs/ARCHITECTURE.md); the agent + tools live in n8n WF-01.
 export async function POST(request: Request): Promise<Response> {
   let raw: unknown;
   try {
@@ -33,11 +39,17 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await callN8nWebhook({
-      url: config.url,
-      secret: config.secret,
-      payload: parsed.data,
-    });
+    // One n8n call per turn (docs/AI_AGENT.md budget rule); a second call only if the
+    // first response fails schema validation.
+    let result = await callAndValidate(config, parsed.data);
+    if (!result) {
+      console.warn("[api/coach] agent response failed validation — retrying once");
+      result = await callAndValidate(config, parsed.data);
+    }
+    if (!result) {
+      console.error("[api/coach] agent response invalid twice — returning safe fallback");
+      return Response.json({ ...FALLBACK_RESPONSE, degraded: true }, { status: 200 });
+    }
     return Response.json(result, { status: 200 });
   } catch (err) {
     const status = err instanceof N8nError ? err.status : undefined;
@@ -47,4 +59,14 @@ export async function POST(request: Request): Promise<Response> {
       { status: 502 },
     );
   }
+}
+
+async function callAndValidate(
+  config: { url: string; secret: string },
+  payload: unknown,
+): Promise<AgentResponse | null> {
+  const raw = await callN8nWebhook({ url: config.url, secret: config.secret, payload });
+  const candidate = unwrapAgentPayload(raw);
+  const parsed = AgentResponseSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
 }

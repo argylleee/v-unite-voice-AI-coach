@@ -52,9 +52,16 @@ Update this when a milestone is actually done and verified — not when it's sta
 - `.env.local` now has `N8N_CHAT_WEBHOOK_URL` + `N8N_WEBHOOK_SECRET` (also needed in Vercel).
 
 ## Phase 3 — Structured AI agent
-- [ ] AI Agent node + customer_analytics, customer_lookup, kpi_calculator tools
-- [ ] "Which treatment needs attention?" works
-- [ ] "Which customers need follow-up?" works
+- [x] Next.js side: `AgentResponseSchema` + `/api/coach` validates the agent response,
+      retries once on malformed JSON, then returns a safe `degraded` fallback. 9 integration
+      tests. (`src/lib/validation/agent-response.ts`, `src/types/agent-response.ts`)
+- [x] n8n build guide written: `n8n/PHASE_3_BUILD.md` — exact node config, tool SQL, system
+      prompt, verify checklist. Node types checked against the live instance.
+- [ ] n8n side (user-built): AI Agent node on WF-01 + `customer_analytics` /
+      `customer_lookup` (Postgres Tool) + `kpi_calculator` (Code Tool)
+- [ ] "Which treatment needs attention?" → names CoolSculpting, cites conversion %
+- [ ] "Which customers need follow-up?" → uses customer_lookup, cites the lapsed cluster
+- [ ] "Where are rebooking rates weak?" → names HydraFacial vs Botox
 
 ## Phase 4 — RAG
 - [ ] PDF ingestion

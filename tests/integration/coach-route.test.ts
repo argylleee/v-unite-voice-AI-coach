@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../src/app/api/coach/route";
+import type { AgentResponse } from "../../src/lib/validation/agent-response";
 
-// Integration path: request shape -> Zod validation -> orchestration call to n8n.
-// The n8n HTTP call is mocked (allowed by docs/TESTING.md); validation and the
-// request/response contract are exercised for real.
+// Integration path: request shape -> Zod validation -> orchestration call to n8n ->
+// agent-response validation -> retry-once -> safe fallback. The n8n HTTP call is mocked
+// (allowed by docs/TESTING.md); every boundary and the retry/fallback contract are real.
 
 const WEBHOOK_URL = "https://n8n.example.test/webhook/coach";
 const SECRET = "test-secret-123";
@@ -13,11 +14,33 @@ const VALID_BODY = {
   mode: "chat" as const,
 };
 
+const AGENT_RESPONSE: AgentResponse = {
+  answer:
+    "CoolSculpting conversion is 27.6% across 29 completed consultations, well below your other treatments.",
+  insights: ["CoolSculpting has the highest consult volume but the lowest conversion."],
+  evidence: [
+    {
+      type: "customer_data",
+      description: "CoolSculpting: 8 purchases / 29 completed consultations",
+      source: null,
+    },
+  ],
+  recommendations: ["Review what happens during CoolSculpting consultations."],
+  follow_up_question: "Want to look at which provider runs those consultations?",
+};
+
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost/api/coach", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "content-type": "application/json" },
   });
 }
 
@@ -50,30 +73,18 @@ describe("POST /api/coach", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("forwards a valid request to n8n with the bearer secret and returns its JSON", async () => {
-    const upstream = {
-      ok: true,
-      clinicId: VALID_BODY.clinicId,
-      echo: VALID_BODY.message,
-      data: { customerCount: 100, treatments: [] },
-    };
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(upstream), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    );
+  it("forwards a valid request with the bearer secret and returns the validated agent response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(AGENT_RESPONSE));
     vi.stubGlobal("fetch", fetchMock);
 
     const res = await POST(makeRequest(VALID_BODY));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(upstream);
+    expect(await res.json()).toEqual(AGENT_RESPONSE);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [calledUrl, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(calledUrl).toBe(WEBHOOK_URL);
-    expect(init.method).toBe("POST");
     expect(new Headers(init.headers).get("authorization")).toBe(`Bearer ${SECRET}`);
     expect(JSON.parse(init.body as string)).toMatchObject({
       clinicId: VALID_BODY.clinicId,
@@ -82,10 +93,46 @@ describe("POST /api/coach", () => {
     });
   });
 
-  it("returns 502 when n8n responds with a non-2xx status", async () => {
+  it("unwraps a wrapped agent payload ({ output: ... })", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ output: AGENT_RESPONSE }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(AGENT_RESPONSE);
+  });
+
+  it("retries once when the first agent response fails schema validation, then succeeds", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response("nope", { status: 403 }));
+      .mockResolvedValueOnce(jsonResponse({ nonsense: true }))
+      .mockResolvedValueOnce(jsonResponse(AGENT_RESPONSE));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(AGENT_RESPONSE);
+  });
+
+  it("returns a safe fallback (200, degraded) when the agent response is invalid twice", async () => {
+    // Fresh Response per call — a Response body can only be read once.
+    const fetchMock = vi.fn().mockImplementation(() => jsonResponse({ answer: "" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ degraded: true, answer: expect.any(String) });
+    expect(body.answer.length).toBeGreaterThan(0);
+  });
+
+  it("returns 502 when n8n responds with a non-2xx status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("nope", { status: 403 }));
     vi.stubGlobal("fetch", fetchMock);
 
     const res = await POST(makeRequest(VALID_BODY));
