@@ -139,9 +139,21 @@ Update this when a milestone is actually done and verified — not when it's sta
   fails cleanly (no hang, no fabrication).
 
 ## Phase 6 — Voice
-- [ ] MediaRecorder output confirmed compatible with Fish Audio STT (real test clip, not assumed)
+- [x] Next.js: `POST /api/voice` — multipart audio upload, format/size validation
+      (`src/lib/validation/voice.ts`: webm/ogg/mp4/wav/mp3/flac/aac, ≤8 MB), forwards to the
+      WF-02 webhook with bearer, validates `{ transcript, answer, audio_base64, audio_mime }`
+      back, distinct 400/500/502 paths. `n8nVoiceConfig()` helper. 8 integration + 6 unit tests.
+- [x] Fish Audio contract confirmed from `api.fish.audio/openapi.json`: STT `POST /v1/asr`
+      (multipart `audio`), TTS `POST /v1/tts` (JSON, raw audio bytes). `n8n/PHASE_6_VOICE.md`
+      has the WF-02 flow + the MediaRecorder-format test plan.
+- [ ] **BLOCKED: `FISH_AUDIO_API_KEY`** — empty in `.env.local`. Need it (from Emman or a Fish
+      account) + a TTS `reference_id` (voice) before WF-02 can be built/tested.
+- [ ] WF-02 built (Fish STT -> WF-01 agent -> Fish TTS)
+- [ ] MediaRecorder webm/opus confirmed accepted by Fish `/v1/asr` with a real clip (or
+      ffmpeg transcode added in WF-02)
 - [ ] STT -> agent -> TTS working end to end
-- [ ] All required voice UI states implemented
+- [ ] Required voice UI states (`idle/recording/uploading/transcribing/thinking/speaking/error`)
+      — minimal recorder here, polished in Phase 8
 
 ## Phase 7 — Sessions
 - [ ] Sessions + messages persisted

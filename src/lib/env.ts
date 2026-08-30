@@ -24,3 +24,11 @@ export function n8nKnowledgeConfig(): { url: string; secret: string } {
     secret: required("N8N_WEBHOOK_SECRET"),
   };
 }
+
+/** n8n voice-coach webhook config (WF-02). */
+export function n8nVoiceConfig(): { url: string; secret: string } {
+  return {
+    url: required("N8N_VOICE_WEBHOOK_URL"),
+    secret: required("N8N_WEBHOOK_SECRET"),
+  };
+}
