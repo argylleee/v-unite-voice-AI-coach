@@ -1,0 +1,351 @@
+{
+  "name": "WF-02 Voice Coach",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Voice Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1600,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "V-Unite n8n Webhook Secret"
+        }
+      },
+      "id": "b59219a7-6541-417e-b844-a8cdaf313e4f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fish.audio/v1/asr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "s1"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "audio",
+              "inputDataFieldName": "audio"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fish STT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1360,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Fish Audio"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "id": "709f7a25-e99d-4f8e-b6f7-03d3cc3ee20a"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t",
+              "name": "transcript",
+              "type": "string",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "id": "c",
+              "name": "clinicId",
+              "type": "string",
+              "value": "={{ $('Voice Webhook').item.json.body.clinicId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Prep Coach Call",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1120,
+        0
+      ],
+      "id": "2627ee6c-c030-4095-b430-c2ef9721e576"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://primary-production-c0ce.up.railway.app/webhook/coach",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"clinicId\": $('Prep Coach Call').item.json.clinicId, \"message\": $('Prep Coach Call').item.json.transcript, \"mode\": \"voice\" } }}",
+        "options": {
+          "timeout": 70000
+        }
+      },
+      "name": "Call WF-01",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -880,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "V-Unite n8n Webhook Secret"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "id": "d4002e22-09c8-4afa-b1ae-1f27bb32c22e"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "let raw=($json.agent_output||$json.output||'').toString().trim();\nraw=raw.replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();\nlet obj=null;try{obj=JSON.parse(raw);}catch(e){const m=raw.match(/\\{[\\s\\S]*\\}/);if(m){try{obj=JSON.parse(m[0]);}catch(_){}}}\nlet answer=(obj&&typeof obj.answer==='string'&&obj.answer.trim())?obj.answer:raw;\nif(!answer)answer='Sorry, I could not produce an answer for that.';\nreturn [{json:{transcript:$('Prep Coach Call').first().json.transcript,answer:answer}}];"
+      },
+      "name": "Parse Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "3e39054c-499d-4e18-87e0-a851a7f69212"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.fish.audio/v1/tts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "s2.1-pro-free"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.answer, \"reference_id\": \"9a9cf47702da476aa4629e2506d4a857\", \"format\": \"mp3\" } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "name": "Fish TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -400,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Fish Audio"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "id": "62ee238c-c554-4345-a117-b7b76d513e78"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const b=($input.first().binary||{}).data;\nif(!b||!b.data){throw new Error('tts_no_audio');}\nreturn [{json:{transcript:$('Parse Answer').first().json.transcript,answer:$('Parse Answer').first().json.answer,audio_base64:b.data,audio_mime:b.mimeType||'audio/mpeg'}}];"
+      },
+      "name": "Encode Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "id": "4793e8ec-101a-45c5-b0f5-be17f52b1712"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        80,
+        0
+      ],
+      "id": "069e19b8-2cd7-40b6-b4e1-c0751e58a2ba"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"voice_pipeline_failed\" } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -160,
+        200
+      ],
+      "id": "3ed9ecf7-a31e-480f-a6dd-06b942c14123"
+    }
+  ],
+  "connections": {
+    "Voice Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fish STT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fish STT": {
+      "main": [
+        [
+          {
+            "node": "Prep Coach Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Coach Call": {
+      "main": [
+        [
+          {
+            "node": "Call WF-01",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call WF-01": {
+      "main": [
+        [
+          {
+            "node": "Parse Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Answer": {
+      "main": [
+        [
+          {
+            "node": "Fish TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fish TTS": {
+      "main": [
+        [
+          {
+            "node": "Encode Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encode Response": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

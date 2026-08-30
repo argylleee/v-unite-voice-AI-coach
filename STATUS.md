@@ -146,12 +146,19 @@ Update this when a milestone is actually done and verified — not when it's sta
 - [x] Fish Audio contract confirmed from `api.fish.audio/openapi.json`: STT `POST /v1/asr`
       (multipart `audio`), TTS `POST /v1/tts` (JSON, raw audio bytes). `n8n/PHASE_6_VOICE.md`
       has the WF-02 flow + the MediaRecorder-format test plan.
-- [ ] **BLOCKED: `FISH_AUDIO_API_KEY`** — empty in `.env.local`. Need it (from Emman or a Fish
-      account) + a TTS `reference_id` (voice) before WF-02 can be built/tested.
-- [ ] WF-02 built (Fish STT -> WF-01 agent -> Fish TTS)
-- [ ] MediaRecorder webm/opus confirmed accepted by Fish `/v1/asr` with a real clip (or
-      ffmpeg transcode added in WF-02)
-- [ ] STT -> agent -> TTS working end to end
+- [x] Fish Audio key wired: n8n credential "Fish Audio" (`lOgLZPUqsI2fdh93`, header-auth) +
+      `.env.local`. TTS verified live (`POST /v1/tts`, `model: s2.1-pro-free`,
+      `reference_id 9a9cf477...`, `format mp3` -> valid 128kbps mp3).
+- [x] **WF-02 Voice Coach built + active** (`vqq63jCqbWA4k7wP`): Voice Webhook -> Fish STT
+      (`/v1/asr`) -> Prep -> Call WF-01 (`/webhook/coach`, mode:voice) -> Parse Answer ->
+      Fish TTS -> Encode (base64) -> Respond `{transcript, answer, audio_base64, audio_mime}`.
+      Every stage has an error branch -> Respond 502 `voice_pipeline_failed`. Wiring + error
+      path verified with a real audio POST. `n8n/workflows/wf-02-voice-coach.json` snapshot.
+- [ ] **BLOCKED: Fish Audio STT credit.** `/v1/asr` returns **402 "Insufficient API credit"**
+      on every model — the account's API credit is $0 and there is no free ASR model (only
+      free TTS). Add funds at https://fish.audio/app/developers, then one test closes:
+      STT -> agent -> TTS end to end + MediaRecorder webm/opus format check (ffmpeg transcode
+      in WF-02 is the fallback — verify `ffmpeg -version` on the Railway n8n first).
 - [ ] Required voice UI states (`idle/recording/uploading/transcribing/thinking/speaking/error`)
       — minimal recorder here, polished in Phase 8
 
