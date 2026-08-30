@@ -5,11 +5,12 @@ Update this when a milestone is actually done and verified — not when it's sta
 
 ## Phase 1 — Foundation
 - [x] Next.js (App Router) + TypeScript + Tailwind v4 + ESLint + Vitest + Playwright
-- [ ] Supabase project created, migrations applied — needs the user's Supabase credentials;
-      `npm run db:migrate` runner is built and migration SQL is unchanged from the docs
+- [x] Supabase project created; all 3 migrations applied via `npm run db:migrate`
+      (verified: 7 tables present, pgvector extension + hnsw index + `match_knowledge_chunks` RPC)
 - [x] Seed script: deterministic generator for 100 patterned customer records
       (`src/lib/seed/`, `npm run seed`), unit-tested for the CoolSculpting-low-conversion /
-      Botox-high-rebooking / lapsed-customer-cluster patterns. Live insert pending the DB above.
+      Botox-high-rebooking / lapsed-customer-cluster patterns. Live-seeded: 1 clinic
+      ("V-Unite Aesthetic Clinic"), 100 customers, 30 CoolSculpting.
 - [ ] CI green on an empty-but-real app — all CI steps pass locally (lint, typecheck, unit,
       integration [none yet], build, e2e smoke); needs a GitHub remote + push to confirm on Actions
 
@@ -17,8 +18,9 @@ Update this when a milestone is actually done and verified — not when it's sta
 - `git init` done on branch `main`; no GitHub remote yet — create one and push.
 - Embedding vector dimension in `0002_pgvector_and_rag.sql` is still the 1536 placeholder;
   set it in Phase 4 once the embedding model is chosen (`docs/AI_AGENT.md`).
-- Local `.env.local` not created (no credentials); `.env.example` gained `SUPABASE_DB_URL`
-  and `SEED_CLINIC_NAME`.
+- `.env.example` gained `SUPABASE_DB_URL` and `SEED_CLINIC_NAME`. `SUPABASE_DB_URL` must be
+  the Supabase **session pooler** string (port 5432, `aws-0-*.pooler.supabase.com`) — the
+  direct-connection host is IPv6-only and won't resolve on most networks.
 
 ## Phase 2 — n8n plumbing
 - [ ] Webhook auth working end to end (Next.js -> n8n -> Supabase -> response)
