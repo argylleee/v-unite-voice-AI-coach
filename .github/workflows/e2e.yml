@@ -2,7 +2,6 @@ name: E2E
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 jobs:
@@ -20,18 +19,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Build
+      - name: Production build
         run: npm run build
-
-      - name: Run E2E suite
-        run: npm run test:e2e
         env:
-          # External paid APIs (LLM, Fish Audio) are mocked for this suite per docs/TESTING.md —
-          # do not point this at real provider credentials.
-          CI: true
+          # The e2e run stubs every /api/* call with page.route(), so these only need to be
+          # present for the build/route modules to load — not real.
+          N8N_CHAT_WEBHOOK_URL: https://example.invalid/webhook/coach
+          N8N_VOICE_WEBHOOK_URL: https://example.invalid/webhook/voice
+          N8N_KNOWLEDGE_WEBHOOK_URL: https://example.invalid/webhook/knowledge
+          N8N_SUMMARY_WEBHOOK_URL: https://example.invalid/webhook/summary
+          N8N_WEBHOOK_SECRET: ci-not-real
+          SUPABASE_URL: https://example.invalid
+          SUPABASE_SERVICE_ROLE_KEY: ci-not-real
+          NEXT_PUBLIC_CLINIC_ID: 80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4
+          NEXT_PUBLIC_CLINIC_NAME: V-Unite Aesthetic Clinic
 
-  # Add this job's name to Vercel Deployment Checks alongside "quality" once the E2E suite is
-  # real (docs/DEPLOYMENT.md) — a broken core user flow should also hold back production.
+      - name: Run Playwright smoke
+        run: npx playwright test
+        env:
+          CI: "true"
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # NOTE: per docs/DEPLOYMENT.md, add this job ("e2e") alongside "quality" under Vercel
+  # Project Settings -> Deployment Checks once it is producing a stable check.

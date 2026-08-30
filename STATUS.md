@@ -216,11 +216,39 @@ Update this when a milestone is actually done and verified — not when it's sta
   Groq Whisper (carried over from Phase 6) — do this in the Phase 9 e2e/smoke pass.
 
 ## Phase 9 — QA
-- [ ] Unit tests
-- [ ] Integration test
-- [ ] E2E/smoke test
-- [ ] Failure/regression test (missing-knowledge hallucination case)
-- [ ] CI fully green
+- [x] Unit tests — `tests/unit/` (kpi 11, agent-response, voice 6, seed). Deterministic
+      business logic only, per `docs/TESTING.md`.
+- [x] Integration tests — `tests/integration/` real request → validation → orchestration →
+      DB/tool path, paid APIs mocked: coach-route, knowledge-route, voice-route,
+      sessions-route, **grounding** (new). **88 vitest tests, all green.**
+- [x] E2E / smoke — `tests/e2e/smoke.spec.ts` rewritten from the Phase-1 stub to the real
+      core journey: open → redirect to /coach → ask "which treatment has the lowest
+      conversion?" → assert the answer names CoolSculpting + 27.6% + shows Findings/Plan +
+      an SOP citation → End & summarise → land on /sessions/[id] with summary + action plan.
+      `/api/*` stubbed with `page.route()` so it is deterministic and needs no live n8n.
+      2 specs, both pass. New `.github/workflows/e2e.yml` runs it (build → `npm start` →
+      Playwright), separate from the `quality` gate per `docs/DEPLOYMENT.md`.
+- [x] Failure/regression test (required) — `tests/integration/grounding.test.ts`: n8n mocked
+      to return a grounded refusal ("does not contain enough information…") for a
+      no-document policy question; asserts `/api/coach` relays it verbatim, `evidence` stays
+      `[]`, `degraded` is falsy (a refusal is a valid answer, not the fallback path). Also:
+      refusal survives the `{ agent_output }` wrapper + surrounding prose, and an injection
+      string carried inside `evidence[].description` is preserved as inert data, never acted
+      on.
+- [x] CI green — `npm run typecheck` / `lint` / `test` (88) / `build` all pass locally;
+      `quality` job unchanged, `e2e` job added.
+
+### Phase 9 notes
+- **WF-05 Error Handler** authored: `n8n/workflows/wf-05-error-handler.json` (Execute Workflow
+  Trigger → Normalize Error → Build Error Response; no credentials) + wiring guide
+  `n8n/PHASE_9_ERROR_HANDLER.md`. Live import on Railway + adding the Execute-WF-05 calls to
+  WF-01/02/03/04's error branches is a manual n8n step (same as every workflow here) — the
+  inline error branches already respond 4xx/5xx, so the app is correct without it; WF-05 just
+  centralises the shape + logging.
+- e2e full-stack-against-real-n8n is deliberately out of CI (needs the live Railway instance +
+  DeepSeek budget); it's the Phase 10 production smoke.
+- Playwright `webServer` uses `npm run start`, so `e2e.yml` builds first; `reuseExistingServer`
+  is off in CI.
 
 ## Phase 10 — Deployment
 - [ ] Deployed to Vercel
