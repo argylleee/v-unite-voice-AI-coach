@@ -26,26 +26,27 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.fish.audio/v1/asr",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "s1"
-            }
-          ]
-        },
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
           "parameters": [
             {
               "parameterType": "formBinaryData",
-              "name": "audio",
+              "name": "file",
               "inputDataFieldName": "audio"
+            },
+            {
+              "parameterType": "formData",
+              "name": "model",
+              "value": "whisper-large-v3-turbo"
+            },
+            {
+              "parameterType": "formData",
+              "name": "response_format",
+              "value": "json"
             }
           ]
         },
@@ -53,7 +54,7 @@
           "timeout": 60000
         }
       },
-      "name": "Fish STT",
+      "name": "Groq Whisper STT",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -61,8 +62,8 @@
         0
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "name": "Fish Audio"
+        "groqApi": {
+          "name": "Groq account"
         }
       },
       "onError": "continueErrorOutput",
@@ -190,7 +191,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const b=($input.first().binary||{}).data;\nif(!b||!b.data){throw new Error('tts_no_audio');}\nreturn [{json:{transcript:$('Parse Answer').first().json.transcript,answer:$('Parse Answer').first().json.answer,audio_base64:b.data,audio_mime:b.mimeType||'audio/mpeg'}}];"
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (!buf || buf.length < 100) { throw new Error('tts_no_audio'); }\nconst meta = ($input.first().binary || {}).data || {};\nreturn [{ json: {\n  transcript: $('Parse Answer').first().json.transcript,\n  answer: $('Parse Answer').first().json.answer,\n  audio_base64: buf.toString('base64'),\n  audio_mime: meta.mimeType || 'audio/mpeg'\n} }];"
       },
       "name": "Encode Response",
       "type": "n8n-nodes-base.code",
@@ -242,14 +243,14 @@
       "main": [
         [
           {
-            "node": "Fish STT",
+            "node": "Groq Whisper STT",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fish STT": {
+    "Groq Whisper STT": {
       "main": [
         [
           {

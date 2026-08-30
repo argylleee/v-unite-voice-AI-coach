@@ -154,13 +154,19 @@ Update this when a milestone is actually done and verified — not when it's sta
       Fish TTS -> Encode (base64) -> Respond `{transcript, answer, audio_base64, audio_mime}`.
       Every stage has an error branch -> Respond 502 `voice_pipeline_failed`. Wiring + error
       path verified with a real audio POST. `n8n/workflows/wf-02-voice-coach.json` snapshot.
-- [ ] **BLOCKED: Fish Audio STT credit.** `/v1/asr` returns **402 "Insufficient API credit"**
-      on every model — the account's API credit is $0 and there is no free ASR model (only
-      free TTS). Add funds at https://fish.audio/app/developers, then one test closes:
-      STT -> agent -> TTS end to end + MediaRecorder webm/opus format check (ffmpeg transcode
-      in WF-02 is the fallback — verify `ffmpeg -version` on the Railway n8n first).
+- [x] **STT: Groq Whisper (`whisper-large-v3-turbo`), not Fish** — Fish `/v1/asr` has no free
+      tier (402 on every model, $0 API credit). Groq's free tier does Whisper, natively
+      accepts webm/opus, and is fast. Fish still does the voice *output* (TTS). Deviation from
+      `PROJECT_SPEC` "Fish for voice input" — flag to Emman; one-node swap back if Fish credit
+      appears. `Groq account` credential created on Railway.
+- [x] **STT -> agent -> TTS verified end to end** at $0: `POST /webhook/voice` and
+      `POST /api/voice` both return `{ transcript, answer, audio_base64 (~400 KB valid mp3),
+      audio_mime }` in ~18-19s. (`Encode Response` uses `getBinaryDataBuffer` — the instance's
+      binaryDataMode is `database` so inline binary access returns empty.)
+- [ ] MediaRecorder webm/opus from a real browser recording (Groq docs list webm as supported;
+      the actual browser test happens with the Phase 8 recorder UI).
 - [ ] Required voice UI states (`idle/recording/uploading/transcribing/thinking/speaking/error`)
-      — minimal recorder here, polished in Phase 8
+      — Phase 8 Impeccable pass.
 
 ## Phase 7 — Sessions
 - [ ] Sessions + messages persisted
