@@ -2,6 +2,7 @@ name: E2E
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -37,8 +38,8 @@ jobs:
           NEXT_PUBLIC_CLINIC_ID: 80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4
           NEXT_PUBLIC_CLINIC_NAME: V-Unite Aesthetic Clinic
 
-      - name: Run Playwright smoke
-        run: npx playwright test
+      - name: Run E2E suite
+        run: npm run test:e2e
         env:
           CI: "true"
 
