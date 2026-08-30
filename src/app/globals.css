@@ -1,19 +1,141 @@
 @import "tailwindcss";
 
+/*
+  V-UNITE COACH — visual contract (seed d58f76c2)
+  THESIS: the coach as a clinic chart. It refuses the assistant-bubble + hero-metric arrangement;
+    an answer is a record with Findings / Assessment / Plan, and its evidence is cited like lab values.
+  OWN-WORLD: ink on warm chart paper, hairline rules, one clinical teal. Public Sans (records
+    grotesk) for text, Spline Sans Mono for every figure, unit, source label, and ID. Sectioned
+    by tracked uppercase dividers, not cards. Nothing decorative.
+  STORY: the owner asks a business question, reads a sourced finding, an assessment, and a
+    prioritised plan, and can see every number and document passage it stands on.
+  FIRST VIEWPORT: a left binder rail (Coach / Knowledge / Sessions); the coach column holds the
+    conversation, the composer pinned at the foot with a record/stop voice control beside the field.
+  FORM: clinical chart / medical record, #6 of the grounded list. seed d58f76c2.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the
+    verdict, DESIGN.md, and every shipping raster carrying its provenance.
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --paper: #f6f4ee;
+  --paper-raised: #fffdf8;
+  --paper-sunk: #efece3;
+
+  --ink: #1e2320;
+  --ink-2: #495049;
+  --ink-3: #6c746c;
+
+  --rule: #d9d4c6;
+  --rule-strong: #b7b0a0;
+
+  --accent: #0f6b5f;
+  --accent-ink: #0a473f;
+  --accent-soft: #e0eeeb;
+
+  --warn-ink: #7c5410;
+  --warn-soft: #f4ead1;
+
+  --danger-ink: #8c3a33;
+  --danger-soft: #f2ded9;
+
+  --focus: #0f6b5f;
+
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
+    Consolas, monospace;
+
+  --rail-w: 15rem;
+  --measure: 68ch;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--rule);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  font-feature-settings: "cv05" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--paper-raised);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* tabular figures everywhere numbers appear as data */
+.tnum,
+.font-mono,
+[class*="font-mono"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* thin, paper-toned scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border: 3px solid var(--paper);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+a {
+  color: var(--accent-ink);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+/* the record divider: FINDINGS / ASSESSMENT / PLAN */
+.record-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+@keyframes vu-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

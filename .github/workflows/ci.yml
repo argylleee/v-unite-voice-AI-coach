@@ -34,11 +34,10 @@ jobs:
       - name: Production build
         run: npm run build
 
-      # Design-quality gate — enable once src/ actually contains UI (docs/DEVELOPMENT_PLAN.md
-      # Phase 8). Requires Impeccable installed (docs/UI_DESIGN.md). Left commented out until
-      # then so CI doesn't fail on a repo with no UI yet.
-      # - name: Impeccable design lint
-      #   run: npx impeccable detect --json src/
+      # Design-quality gate (docs/DEVELOPMENT_PLAN.md Phase 8, docs/UI_DESIGN.md). Fails the
+      # check on any unaddressed "AI slop" finding in src/.
+      - name: Impeccable design lint
+        run: npx impeccable detect --json src/
 
   # NOTE: this job's name ("quality") is what you select under Vercel Project Settings ->
   # Deployment Checks -> Add Checks -> GitHub, per docs/DEPLOYMENT.md. If you rename this job,

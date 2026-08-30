@@ -189,9 +189,31 @@ Update this when a milestone is actually done and verified — not when it's sta
 - `N8N_SUMMARY_WEBHOOK_URL` added to `.env.example` / `.env.local`.
 
 ## Phase 8 — UI (Impeccable)
-- [ ] `/impeccable init` run, PRODUCT.md + DESIGN.md committed
-- [ ] Required screens built and passed through shape/critique/audit/polish
-- [ ] `npx impeccable detect` clean
+- [x] `/impeccable init` run — `PRODUCT.md` + `DESIGN.md` committed. Direction seeded
+      (`concept-seed`, seed `d58f76c2`, form #6 "clinical chart / medical record"), user
+      confirmed. `src/app/globals.css` carries the visual contract + all tokens.
+- [x] All required screens built to the clinical-chart world: `/coach` (chat + voice in one
+      composer, `idle/recording/uploading/transcribing/thinking/speaking/error` states,
+      evidence cited per answer, End & summarise), `/knowledge` (drag-drop upload, `.pdf`/`.txt`
+      ≤4 MB, status polling), `/sessions` (list), `/sessions/[id]` (summary + key findings +
+      action plan + transcript). Shared primitives in `src/components/chart.tsx`; binder-rail
+      shell in `src/components/app-shell.tsx`. Client fetchers in `src/lib/client/api.ts`
+      (no direct Supabase from the browser). `src/app/page.tsx` redirects to `/coach`.
+- [x] Critique / audit / polish pass done at code level (browser extension offline, so no
+      screenshot pass): clear of Impeccable's anti-pattern list — no drop shadows, gradients,
+      nested cards, AI-beige, or Inter; `:focus-visible` ring, `prefers-reduced-motion` shutoff,
+      `role="alert"` notices, `aria-live` thinking indicator, `aria-current` tab, sr-only input
+      label, non-audio path to every voice answer (transcript always rendered).
+- [x] `npx impeccable detect --json src/` → `[]` (clean). CI gate enabled in
+      `.github/workflows/ci.yml` ("Impeccable design lint" step, previously commented out).
+- [x] `npm run build` / `typecheck` / `lint` / `test` (83) all green. Route sizes: `/coach`
+      5.41 kB, `/knowledge` 3.27 kB, `/sessions` 2.7 kB, `/sessions/[id]` 3.05 kB.
+
+### Phase 8 notes
+- Fonts: Public Sans (body) + Spline Sans Mono (all figures/labels/IDs) via `next/font/google`.
+  Single committed light surface — no dark theme, by decision (timed MVP).
+- Not done in-browser: a real MediaRecorder webm/opus capture through `VoiceRecorder` against
+  Groq Whisper (carried over from Phase 6) — do this in the Phase 9 e2e/smoke pass.
 
 ## Phase 9 — QA
 - [ ] Unit tests

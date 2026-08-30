@@ -20,6 +20,14 @@ coverage/
 playwright-report/
 test-results/
 
+# Impeccable design tool — vendored by `npx impeccable install`, regenerated on demand.
+# CI runs `npx impeccable detect` from npm, so these don't need to be tracked.
+.claude/skills/impeccable/
+.github/agents/
+.github/hooks/
+.github/skills/
+.impeccable/
+
 # Misc
 .DS_Store
 *.log
