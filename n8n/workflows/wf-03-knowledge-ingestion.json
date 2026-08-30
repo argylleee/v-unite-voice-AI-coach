@@ -1,0 +1,182 @@
+{
+  "name": "WF-03 Knowledge Ingestion",
+  "nodes": [
+    {
+      "id": "a7769a1b-33ed-4ed0-ba28-4dd2432ece8a",
+      "name": "Ingest Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 128],
+      "webhookId": "8ce2fee5-6594-4646-b9f7-3957f68764bc",
+      "parameters": { "httpMethod": "POST", "path": "knowledge", "authentication": "headerAuth", "responseMode": "responseNode", "options": {} },
+      "credentials": { "httpHeaderAuth": { "name": "V-Unite n8n Webhook Secret" } }
+    },
+    {
+      "id": "cc857e5a-4ccb-423a-b23c-8182879b9b59",
+      "name": "Normalize",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [224, 128],
+      "parameters": { "mode": "manual", "includeOtherFields": true, "assignments": { "assignments": [
+        { "id": "clinicId", "name": "clinicId", "type": "string", "value": "={{ $json.body.clinicId }}" },
+        { "id": "filename", "name": "filename", "type": "string", "value": "={{ $json.body.filename }}" },
+        { "id": "fileType", "name": "fileType", "type": "string", "value": "={{ $json.body.fileType }}" }
+      ] } }
+    },
+    {
+      "id": "e4905c0f-0557-4266-adfb-584e120f0d93",
+      "name": "Insert Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [448, 128],
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "insert into knowledge_documents (clinic_id, filename, file_type, status) values ($1, $2, $3, 'processing') returning id",
+        "options": { "queryReplacement": "={{ $json.clinicId }}, {{ $json.filename }}, {{ $json.fileType }}" }
+      },
+      "credentials": { "postgres": { "name": "V-Unite Supabase" } }
+    },
+    {
+      "id": "f51b4380-ab10-4262-ad1d-130f9c121f1e",
+      "name": "Route File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [672, 128],
+      "parameters": { "rules": { "values": [
+        { "renameOutput": true, "outputKey": "pdf", "conditions": { "combinator": "and", "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" }, "conditions": [ { "id": "p", "leftValue": "={{ $(\"Normalize\").item.json.fileType }}", "rightValue": "pdf", "operator": { "type": "string", "operation": "equals" } } ] } },
+        { "renameOutput": true, "outputKey": "txt", "conditions": { "combinator": "and", "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" }, "conditions": [ { "id": "t", "leftValue": "={{ $(\"Normalize\").item.json.fileType }}", "rightValue": "txt", "operator": { "type": "string", "operation": "equals" } } ] } }
+      ] }, "options": {} }
+    },
+    {
+      "id": "6caa218b-1b48-4dbb-84d4-9e944494984e",
+      "name": "Extract PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [896, 32],
+      "parameters": { "operation": "pdf", "binaryPropertyName": "file", "options": { "joinPages": true } }
+    },
+    {
+      "id": "936aee32-c122-481d-9168-24a930ff0670",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [896, 224],
+      "parameters": { "operation": "text", "binaryPropertyName": "file", "destinationKey": "text", "options": {} }
+    },
+    {
+      "id": "49ca2e16-1242-471f-9396-42964ccb81f2",
+      "name": "Chunk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 128],
+      "parameters": { "mode": "runOnceForAllItems", "language": "javaScript", "jsCode": "const s=$input.first().json;const raw=(s.text||s.data||s.content||'').toString();const clean=raw.replace(/\\r\\n/g,'\\n').replace(/\\n{3,}/g,'\\n\\n').trim();if(!clean){throw new Error('no_text_extracted');}const SIZE=2000,OVERLAP=300,out=[];let i=0;while(i<clean.length){const p=clean.slice(i,i+SIZE).trim();if(p)out.push(p);i+=SIZE-OVERLAP;}return out.map((content,idx)=>({json:{content,chunk_index:idx}}));" }
+    },
+    {
+      "id": "18a78e43-b000-48ea-b91d-95958086a259",
+      "name": "Cohere Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1344, 128],
+      "executeOnce": true,
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cohere.com/v2/embed",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cohereApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={ \"model\": \"embed-english-v3.0\", \"input_type\": \"search_document\", \"embedding_types\": [\"float\"], \"texts\": {{ JSON.stringify($input.all().map(i => i.json.content)) }} }",
+        "options": { "timeout": 60000 }
+      },
+      "credentials": { "cohereApi": { "name": "Cohere account" } }
+    },
+    {
+      "id": "6a10e3dc-8531-48f7-bdb3-ba4e4c484238",
+      "name": "Zip Embeddings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1568, 48],
+      "parameters": { "mode": "runOnceForAllItems", "language": "javaScript", "jsCode": "const v=$json.embeddings&&$json.embeddings.float;const c=$('Chunk').all().map(i=>i.json);if(!Array.isArray(v)||v.length!==c.length){throw new Error('embedding_count_mismatch');}const docId=$('Insert Document').first().json.id;const clinicId=$('Normalize').first().json.clinicId;const filename=$('Normalize').first().json.filename;return c.map((x,idx)=>({json:{document_id:docId,clinic_id:clinicId,content:x.content,chunk_index:x.chunk_index,embedding:'['+v[idx].join(',')+']',metadata:JSON.stringify({source:filename,chunk_index:x.chunk_index})}}));" }
+    },
+    {
+      "id": "681c5ee5-97ae-4373-9a80-d3d299f2260c",
+      "name": "Insert Chunks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [1792, 48],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "insert into knowledge_chunks (document_id, clinic_id, content, chunk_index, embedding, metadata) values ($1, $2, $3, $4, $5::vector, $6::jsonb)",
+        "options": { "queryReplacement": "={{ $json.document_id }}, {{ $json.clinic_id }}, {{ $json.content }}, {{ $json.chunk_index }}, {{ $json.embedding }}, {{ $json.metadata }}" }
+      },
+      "credentials": { "postgres": { "name": "V-Unite Supabase" } }
+    },
+    {
+      "id": "aca11e60-b9df-40b9-adb2-6592201e270e",
+      "name": "Mark Ready",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [2016, 0],
+      "executeOnce": true,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "update knowledge_documents set status = 'ready' where id = $1",
+        "options": { "queryReplacement": "={{ $(\"Insert Document\").first().json.id }}" }
+      },
+      "credentials": { "postgres": { "name": "V-Unite Supabase" } }
+    },
+    {
+      "id": "21bd4b88-c5fe-4489-a876-34389216b121",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2240, 0],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"ok\": true, \"documentId\": $(\"Insert Document\").first().json.id, \"chunks\": $(\"Chunk\").all().length, \"status\": \"ready\" } }}", "options": { "responseCode": 200 } }
+    },
+    {
+      "id": "98d70b63-cbea-4e7b-a67b-f045f8e30768",
+      "name": "Mark Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [2016, 224],
+      "executeOnce": true,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "update knowledge_documents set status = 'failed' where id = $1",
+        "options": { "queryReplacement": "={{ $(\"Insert Document\").first().json.id }}" }
+      },
+      "credentials": { "postgres": { "name": "V-Unite Supabase" } }
+    },
+    {
+      "id": "9a84e9fa-2bd9-48df-ae9a-ab78c6dd2b2a",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [2240, 224],
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"ok\": false, \"error\": \"ingestion_failed\" } }}", "options": { "responseCode": 502 } }
+    }
+  ],
+  "connections": {
+    "Ingest Webhook": { "main": [[{ "node": "Normalize", "type": "main", "index": 0 }]] },
+    "Normalize": { "main": [[{ "node": "Insert Document", "type": "main", "index": 0 }]] },
+    "Insert Document": { "main": [[{ "node": "Route File Type", "type": "main", "index": 0 }]] },
+    "Route File Type": { "main": [[{ "node": "Extract PDF", "type": "main", "index": 0 }], [{ "node": "Extract Text", "type": "main", "index": 0 }]] },
+    "Extract PDF": { "main": [[{ "node": "Chunk", "type": "main", "index": 0 }]] },
+    "Extract Text": { "main": [[{ "node": "Chunk", "type": "main", "index": 0 }]] },
+    "Chunk": { "main": [[{ "node": "Cohere Embed", "type": "main", "index": 0 }]] },
+    "Cohere Embed": { "main": [[{ "node": "Zip Embeddings", "type": "main", "index": 0 }], [{ "node": "Mark Failed", "type": "main", "index": 0 }]] },
+    "Zip Embeddings": { "main": [[{ "node": "Insert Chunks", "type": "main", "index": 0 }]] },
+    "Insert Chunks": { "main": [[{ "node": "Mark Ready", "type": "main", "index": 0 }], [{ "node": "Mark Failed", "type": "main", "index": 0 }]] },
+    "Mark Ready": { "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]] },
+    "Mark Failed": { "main": [[{ "node": "Respond Error", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
