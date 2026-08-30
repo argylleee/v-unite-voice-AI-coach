@@ -60,10 +60,10 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-// A coaching turn is an LLM reason-pass + tool calls + a format pass — seconds, not sub-second.
-// Generous enough that a warm agent turn never trips it; short enough that a wedged upstream
-// still fails fast-ish. Network/timeout failures are NOT retried (only schema-invalid output is).
-const COACH_TIMEOUT_MS = 45_000;
+// A hybrid coaching turn can be 2-4 tool calls (SQL + RAG) plus reasoning. On the free-tier
+// n8n host a slow one lands around 15-40s; 60s leaves headroom without letting a wedged
+// upstream hang the UI. Timeout failures are NOT retried (only schema-invalid output is).
+const COACH_TIMEOUT_MS = 60_000;
 
 async function callAndValidate(
   config: { url: string; secret: string },

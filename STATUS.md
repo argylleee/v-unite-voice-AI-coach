@@ -117,7 +117,26 @@ Update this when a milestone is actually done and verified — not when it's sta
   in Phase 5 when there are more documents.
 
 ## Phase 5 — Hybrid reasoning
-- [ ] SQL + RAG combined question produces specific, evidence-based coaching
+- [x] SQL + RAG combined question produces specific, evidence-based coaching. Verified on
+      Railway: the money-shot "Based on our CoolSculpting conversion data and our consultation
+      SOP, what should we change?" returns hybrid answers 6/6 — calls `customer_analytics`
+      (+`customer_lookup`) AND `knowledge_search`, `evidence[]` carries both `customer_data`
+      and `knowledge_base` entries, recommendations are anchored to SOP section numbers
+      (3.2 / 4.2 / 4.4 / 8), not a data dump. Grounding still holds (refuses on absent docs).
+
+### Phase 5 notes
+- Uploaded a realistic "Consultation and Conversion SOP.txt" (3 chunks) to give the hybrid
+  question real material — the earlier 1-chunk test doc was too thin.
+- Tuning applied to WF-01's AI Coach Agent:
+  - system message rewritten to plain ASCII (API round-trips had mangled the em-dashes into
+    mojibake, which DeepSeek then echoed) + a hard rule that `evidence[]` must be populated
+    whenever a tool was called.
+  - `kpi_calculator` de-emphasised (customer_analytics already returns computed rates) +
+    "call each tool at most once or twice, never repeat" — DeepSeek had been looping on
+    `kpi_calculator` 6x and hitting the iteration cap (~25% of runs failed with 502).
+  - `maxIterations` 4 -> 8; `/api/coach` timeout 45s -> 60s for slow multi-tool turns.
+- Occasional 502 under load is a free-tier Railway latency issue, not a logic failure — it
+  fails cleanly (no hang, no fabrication).
 
 ## Phase 6 — Voice
 - [ ] MediaRecorder output confirmed compatible with Fish Audio STT (real test clip, not assumed)
