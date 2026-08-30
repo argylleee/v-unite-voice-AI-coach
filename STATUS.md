@@ -85,9 +85,12 @@ Update this when a milestone is actually done and verified — not when it's sta
       + `chunk_count` + status). 13 integration tests. (`src/lib/validation/knowledge.ts`)
 - [x] n8n build guide: `n8n/PHASE_4_BUILD.md` — WF-03 ingestion + TOOL-knowledge_search,
       exact node config, Cohere `/v2/embed` calls, SQL, verify + grounding checklist.
-- [ ] n8n side (user-built): WF-03 Knowledge Ingestion (PDF + TXT)
-- [ ] n8n side (user-built): TOOL-knowledge_search wired onto WF-01's agent; WF-01 system
-      message updated for SQL-vs-RAG + grounding; WF-01 republished
+- [x] n8n workflows built via MCP: WF-03 Knowledge Ingestion (`ryAB1l6I1lcxs7T4`),
+      TOOL-knowledge_search (`xnwwuKerSw9c0XBE`); `knowledge_search` wired onto WF-01's agent
+      + system message updated for SQL-vs-RAG + grounding + output-parser example.
+- [ ] Finish (user, n8n editor): attach Cohere cred to the 2 HTTP nodes; publish WF-03 +
+      TOOL-knowledge_search + re-publish WF-01; delete the empty `WF-03 - Knowledge
+      Ingestion` shell; set `N8N_KNOWLEDGE_WEBHOOK_URL`; confirm webhook exposes `binary.file`
 - [ ] "What does our SOP say?" → answer quotes the doc, `evidence` has a `knowledge_base`
       item with the source filename
 - [ ] Grounding: asking about a NOT-uploaded policy → "knowledge base doesn't cover it",

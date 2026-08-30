@@ -1,13 +1,30 @@
 # Phase 4 — RAG (n8n build guide)
 
-You build these by hand in the n8n editor. Claude Code delivered the Next.js side:
-`POST /api/knowledge` (upload → validate → forward file) and `GET /api/knowledge` (list +
-status), plus migration `0004` (embedding column is now `vector(1024)` for Cohere
-`embed-english-v3.0`).
+> **Status: the workflows below were built for you via MCP** (2026-08-30). This file is now
+> the reference for what each node does + the finish/verify steps. Built:
+> - **WF-03 Knowledge Ingestion** — `ryAB1l6I1lcxs7T4` (inactive)
+> - **TOOL-knowledge_search** — `xnwwuKerSw9c0XBE` (inactive)
+> - **WF-01 Chat Coach** — `knowledge_search` tool wired onto the agent + system message
+>   updated for SQL-vs-RAG + grounding (draft; republish needed)
+>
+> **You still need to (n8n editor):**
+> 1. Attach the **Cohere credential** to the two HTTP nodes — WF-03 "Cohere Embed" and
+>    TOOL-knowledge_search "Embed Query". Each is set to *Predefined Credential Type → Cohere
+>    API*; pick "Cohere account". If that option isn't offered, switch the node to *Generic
+>    Credential Type → Header Auth* with `Authorization: Bearer <COHERE_API_KEY>`.
+> 2. **Publish** WF-03, TOOL-knowledge_search, and **re-publish WF-01**.
+> 3. **Delete** the empty `WF-03 - Knowledge Ingestion` shell (`Xegu5jB7xVYxn7rN`) — the
+>    built one is `WF-03 Knowledge Ingestion` (no dash).
+> 4. `.env.local` → `N8N_KNOWLEDGE_WEBHOOK_URL=https://aldreisantua-n8n.duckdns.org/webhook/knowledge`
+> 5. Check WF-03's **Ingest Webhook** node output has `binary.file` after a multipart upload.
+>    If "Extract PDF/Text" errors with no binary data, the field name or the webhook's binary
+>    handling needs a tweak (see §1 below).
+>
+> Then run the verify steps in §3. Everything below is the design reference.
 
-Two things to build:
-1. **WF-03 Knowledge Ingestion** — new workflow, webhook that ingests one file.
-2. **TOOL-knowledge_search** — new sub-workflow, wired onto WF-01's agent as a tool.
+Claude Code delivered the Next.js side: `POST /api/knowledge` (upload → validate → forward
+file) and `GET /api/knowledge` (list + status), plus migration `0004` (embedding column is
+now `vector(1024)` for Cohere `embed-english-v3.0`).
 
 Embedding model: **Cohere `embed-english-v3.0`**, 1024 dims. `input_type` matters:
 `search_document` when embedding chunks (ingestion), `search_query` when embedding the
