@@ -66,7 +66,7 @@ export function VoiceRecorder({
       <button
         type="button"
         onClick={() => setState("idle")}
-        className="shrink-0 rounded-[3px] border border-[var(--danger-ink)] bg-[var(--danger-soft)] px-3 py-2 text-xs text-[var(--danger-ink)]"
+        className="inline-flex h-[2.75rem] shrink-0 items-center rounded-[3px] border border-[var(--danger-ink)] bg-[var(--danger-soft)] px-3 text-xs text-[var(--danger-ink)]"
       >
         Mic blocked — retry
       </button>
@@ -82,7 +82,7 @@ export function VoiceRecorder({
       aria-pressed={recording}
       aria-label={recording ? "Stop recording" : "Record a question"}
       className={[
-        "flex shrink-0 items-center gap-2 rounded-[3px] border px-3 py-2 text-sm transition-colors disabled:opacity-40",
+        "flex h-[2.75rem] shrink-0 items-center gap-2 rounded-[3px] border px-3 text-sm transition-colors disabled:opacity-40",
         recording
           ? "border-[var(--danger-ink)] bg-[var(--danger-soft)] text-[var(--danger-ink)]"
           : "border-[var(--rule-strong)] bg-[var(--paper-raised)] text-[var(--ink-2)] hover:border-[var(--accent)] hover:text-[var(--accent-ink)]",

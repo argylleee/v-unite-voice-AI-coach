@@ -211,7 +211,7 @@ export function CoachView() {
           <button
             type="submit"
             disabled={busy || draft.trim().length === 0}
-            className="shrink-0 rounded-[3px] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-ink)] disabled:opacity-40"
+            className="inline-flex h-[2.75rem] shrink-0 items-center justify-center rounded-[3px] bg-[var(--accent)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-ink)] disabled:opacity-40"
           >
             Ask
           </button>

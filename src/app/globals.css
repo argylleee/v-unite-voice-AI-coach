@@ -108,10 +108,14 @@ body {
   background: transparent;
 }
 
-a {
-  color: var(--accent-ink);
-  text-underline-offset: 0.18em;
-  text-decoration-thickness: 1px;
+/* In @layer base so a bare `text-*` utility on a link (e.g. a primary button that is a
+   <Link>) still wins the cascade. Unlayered, this rule would beat every Tailwind utility. */
+@layer base {
+  a {
+    color: var(--accent-ink);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
 }
 
 /* the record divider: FINDINGS / ASSESSMENT / PLAN */
