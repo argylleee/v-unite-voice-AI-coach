@@ -66,7 +66,8 @@ provided. This was flagged to Emman.
 
 ## Deployment
 
-See `docs/DEPLOYMENT.md` — deployment gating via Vercel Deployment Checks needs a one-time
-dashboard configuration, not just a CI YAML file. The env vars Vercel needs are the
-**"Required by the deployed app"** block of `.env.example` (not `SUPABASE_DB_URL`, which is
-migrations-only).
+CI owns the deploy: `.github/workflows/ci.yml` has a `deploy` job that runs `vercel deploy --prod`
+only on a push to `main` and only after `quality` + `e2e` pass (`needs: [quality, e2e]`).
+`vercel.json` disables Vercel's own auto-deploy for `main`, so a red check means production stays
+on the last good build — requirement #16, enforced. Full setup (Vercel project, env vars, the
+three GitHub secrets, and how to prove the gate) is in `docs/DEPLOYMENT.md`.

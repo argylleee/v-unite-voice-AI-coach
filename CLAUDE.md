@@ -85,10 +85,13 @@ don't silently override it.
    hard $1 cap. See `docs/AI_AGENT.md` for the concrete model recommendation and the cost math
    behind it — this is not a "figure it out later" item, the budget is tight enough that guessing
    wrong burns the demo.
-4. **Deployment gating uses Vercel Deployment Checks**, not "we'll just remember to check CI before
-   demoing." See `docs/DEPLOYMENT.md` for the exact dashboard configuration — this satisfies
-   requirement #16 ("a deployment/build should fail when required checks fail") for real, rather
-   than as an aspiration.
+4. **Deployment gating: CI owns the deploy**, not "we'll just remember to check CI before
+   demoing." The `deploy` job in `.github/workflows/ci.yml` runs `vercel deploy --prod` only on a
+   push to `main` and only with `needs: [quality, e2e]`; `vercel.json` disables Vercel's own
+   auto-deploy for `main`. A red check => `deploy` skipped => production unchanged. This satisfies
+   requirement #16 for real. (Originally planned as Vercel Deployment Checks; switched 2026-08-31
+   because that dashboard flow now requires GitHub Actions to push results to Vercel, which is
+   more moving parts and harder to explain live than a CI-owned deploy.) See `docs/DEPLOYMENT.md`.
 5. **n8n instance: build on the self-hosted instance now, migrate to V-Unite's before submission**
    (decided 2026-08-30). Real progress already exists there (a Phase-2 "WF-01 Chat Coach"
    skeleton, Groq/Gemini credentials) — see `docs/N8N.md` and `docs/ARCHITECTURE.md` decision #6.

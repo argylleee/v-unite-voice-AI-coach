@@ -266,9 +266,13 @@ Update this when a milestone is actually done and verified — not when it's sta
       deferred; only if time remains after deploy
 
 ## Phase 10 — Deployment
-- [ ] Deployed to Vercel (`docs/DEPLOYMENT.md` runbook)
-- [ ] Env vars set in Vercel — the "Required by the deployed app" block only (9 vars, table in DEPLOYMENT.md)
-- [ ] Vercel Deployment Checks configured against the `quality` + `e2e` GitHub jobs
-- [ ] Verified a deliberately broken commit fails to promote (then reverted)
+Gate mechanism: **CI owns the deploy.** `ci.yml` `deploy` job (`needs: [quality, e2e]`, main
+push only) runs `vercel deploy --prod`; `vercel.json` turns off Vercel's auto-deploy for `main`.
+A red check => `deploy` skipped => production unchanged (requirement #16). See `docs/DEPLOYMENT.md`.
+- [ ] Vercel project created + linked (`npx vercel link`)
+- [ ] Env vars set in the Vercel dashboard — "Required by the deployed app" block only (9 vars)
+- [ ] GitHub Actions secrets added: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- [ ] First production deploy via the CI `deploy` job; `*.vercel.app` URL serves all screens
+- [ ] Verified a deliberately broken commit skips `deploy` and leaves production unchanged (then reverted)
 - [ ] n8n workflows active on Railway incl. WF-05 error handler (`n8n/PHASE_9_ERROR_HANDLER.md`)
 - [ ] Final smoke test against the live production URL (core journey + one voice turn), pointed at Railway n8n
