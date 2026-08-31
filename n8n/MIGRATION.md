@@ -7,14 +7,14 @@ Emman provided the real instance + LLM credit (2026-08-31):
   embeddings API, Emman didn't provide one).
 
 Import files (in `n8n/workflows/`, generated from the dev instance):
-`tool-knowledge-search.json`, `wf-03-knowledge-ingestion.json`, `wf-01-chat-coach.json`.
+`knowledge-search.json`, `wf-03-knowledge-ingestion.json`, `wf-01-chat-coach.json`.
 `wf-01` already has the DeepSeek model node + `knowledge_search` tool baked in.
 
 **Already pushed via the n8n public API (2026-08-31):** all 3 workflows now exist on the
 Railway instance (credential references kept by name; nothing active yet):
 - `WF-01 Chat Coach` → `wtkNL2SwbOcZTfGc`
 - `WF-03 Knowledge Ingestion` → `JkcN37NRDhXC6ZAH`
-- `TOOL-knowledge_search` → `qKirMi1Liebzd3Oz` (WF-01's `knowledge_search` node already points here)
+- `knowledge_search` → `qKirMi1Liebzd3Oz` (WF-01's `knowledge_search` node already points here)
 
 So skip §2 (import) — go straight to §1 (credentials), then §3–§6. Section §2 is kept for
 reference / re-doing from scratch.
@@ -39,7 +39,7 @@ Register on the Railway n8n via Emman's invite link, then **Credentials → Add*
 
 **Workflows → (⋯ menu) → Import from File**, in this order:
 
-1. `tool-knowledge-search.json`
+1. `knowledge-search.json`
 2. `wf-03-knowledge-ingestion.json`
 3. `wf-01-chat-coach.json`
 
@@ -51,8 +51,8 @@ credential from step 1 (usually auto-matched by name — just verify).
 ## 3. Fix the two things import can't carry
 
 1. **WF-01 → `knowledge_search` node** — its Workflow field says
-   `REPLACE_WITH_IMPORTED_TOOL-knowledge_search_ID`. Open the node → set the Workflow selector
-   to **From list** → pick **TOOL-knowledge_search**.
+   `REPLACE_WITH_IMPORTED_knowledge_search_ID`. Open the node → set the Workflow selector
+   to **From list** → pick **knowledge_search**.
 2. **WF-01 → `DeepSeek Chat Model` node** — confirm Model = `deepseek-chat` (type it if it's
    not in the dropdown) and Credential = `DeepSeek`. Do **not** use `deepseek-reasoner` — it
    doesn't do tool-calling. The base URL lives on the `DeepSeek` credential, not the node.
@@ -61,7 +61,7 @@ credential from step 1 (usually auto-matched by name — just verify).
 
 ## 4. Publish + collect URLs
 
-Publish/activate in order: **TOOL-knowledge_search → WF-03 → WF-01**.
+Publish/activate in order: **knowledge_search → WF-03 → WF-01**.
 
 Open each webhook node and copy its **Production URL**:
 - WF-01 "Chat Webhook" → `https://primary-production-c0ce.up.railway.app/webhook/coach`
@@ -115,7 +115,7 @@ grounding test (a policy you didn't upload → must refuse, not fabricate).
 - **Credentials must be picked in the editor, per node.** Setting `credentials` by id via the
   API leaves a reference that fails the execution-time permission check ("does not have access
   to the credential"). Open each node, re-select its credential from the dropdown, save.
-- **Sub-workflow tools can't be tested standalone** — `TOOL-knowledge_search`'s trigger has no
+- **Sub-workflow tools can't be tested standalone** — `knowledge_search`'s trigger has no
   `query`/`clinicId` unless the agent (or the manual "Test workflow" input form) supplies them.
   The import JSON now has fallbacks (`$json.query || "test query"`, `clinicId || <demo clinic>`)
   so a bare run still succeeds. Real verification is via WF-01: ask it a knowledge question.

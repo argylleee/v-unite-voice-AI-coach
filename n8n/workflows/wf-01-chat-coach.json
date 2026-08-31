@@ -271,7 +271,7 @@
           "__rl": true,
           "mode": "list",
           "value": "WUu7dGYIp3THhDw4",
-          "cachedResultName": "TOOL-knowledge_search"
+          "cachedResultName": "knowledge_search"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

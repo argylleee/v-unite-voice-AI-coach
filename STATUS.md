@@ -83,9 +83,9 @@ Update this when a milestone is actually done and verified — not when it's sta
 - [x] Next.js: `POST /api/knowledge` (multipart upload → PDF/TXT + 4 MB + 25-doc/clinic
       validation → forward file to n8n with bearer) and `GET /api/knowledge?clinicId=` (list
       + `chunk_count` + status). 13 integration tests. (`src/lib/validation/knowledge.ts`)
-- [x] n8n build guide: `n8n/PHASE_4_BUILD.md` — WF-03 ingestion + TOOL-knowledge_search,
+- [x] n8n build guide: `n8n/PHASE_4_BUILD.md` — WF-03 ingestion + knowledge_search,
       exact node config, Cohere `/v2/embed` calls, SQL, verify + grounding checklist.
-- [x] n8n workflows built (WF-03 ingestion, TOOL-knowledge_search) + `knowledge_search` wired
+- [x] n8n workflows built (WF-03 ingestion, knowledge_search) + `knowledge_search` wired
       onto WF-01's agent, SQL-vs-RAG + grounding system message, output-parser example.
 - [x] **Migrated to V-Unite's Railway instance** (`primary-production-c0ce.up.railway.app`),
       LLM swapped Groq -> **DeepSeek** (`lmChatOpenAi` + `deepseek-chat`, base URL on the
