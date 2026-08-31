@@ -265,14 +265,20 @@ Update this when a milestone is actually done and verified — not when it's sta
 - [ ] (optional bonus) wire `session_context` so the agent recalls the previous session —
       deferred; only if time remains after deploy
 
-## Phase 10 — Deployment
+## Phase 10 — Deployment ✅ (2026-08-31)
 Gate mechanism: **CI owns the deploy.** `ci.yml` `deploy` job (`needs: [quality, e2e]`, main
 push only) runs `vercel deploy --prod`; `vercel.json` turns off Vercel's auto-deploy for `main`.
 A red check => `deploy` skipped => production unchanged (requirement #16). See `docs/DEPLOYMENT.md`.
-- [ ] Vercel project created + linked (`npx vercel link`)
-- [ ] Env vars set in the Vercel dashboard — "Required by the deployed app" block only (9 vars)
-- [ ] GitHub Actions secrets added: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
-- [ ] First production deploy via the CI `deploy` job; `*.vercel.app` URL serves all screens
-- [ ] Verified a deliberately broken commit skips `deploy` and leaves production unchanged (then reverted)
-- [ ] n8n workflows active on Railway incl. WF-05 error handler (`n8n/PHASE_9_ERROR_HANDLER.md`)
-- [ ] Final smoke test against the live production URL (core journey + one voice turn), pointed at Railway n8n
+- [x] Vercel project created + linked (`argylleees-projects/v-unite-voice-ai-coach`)
+- [x] 9 env vars set in the Vercel dashboard (Production scope) — "Required by the deployed app" block
+- [x] GitHub Actions secrets added: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
+- [x] Production live via the CI `deploy` job. `deploy` step writes `.vercel/project.json` from
+      the two ID secrets then `vercel deploy --prod` (remote build). URL: `v-unite-voice-ai-coach.vercel.app`
+- [x] Gate proven: commit `932f63a` broke typecheck -> `quality` + `e2e` red, `deploy`
+      **skipped (0s)**, production untouched. Reverted in `e675d12`.
+      Evidence: `docs/evidence/deploy-gate-skips-on-red-check.png`
+- [x] n8n workflows all Published on Railway incl. WF-05 error handler
+- [x] Live smoke on the production URL passed: chat (evidenced answer), End & summarise
+      (summary + action plan), and a voice turn all work end to end against Railway n8n
+- [x] `maxDuration = 60` set on `/api/coach`, `/api/voice`, `/api/sessions/[id]/end`
+      (Vercel Hobby's 10s serverless default would 504 the slow DeepSeek turns)
