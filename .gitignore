@@ -42,3 +42,5 @@ test-results/
 /wf*.json
 /t.json
 /t.put.json
+.env*
+!.env.example
