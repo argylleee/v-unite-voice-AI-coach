@@ -109,8 +109,11 @@ Update this when a milestone is actually done and verified — not when it's sta
       (retry once, then `degraded` fallback). 11 unit + 12 integration tests.
 
 ### Phase 4 notes
-- PDF ingestion path (`Extract PDF`) is wired the same as TXT but not yet tested with a
-  real PDF file.
+- PDF ingestion verified end to end (2026-08-31): a real 39 KB PDF ("Clinic Refund
+  Policy.pdf", generated via Playwright `page.pdf()`) → `/api/knowledge` → WF-03 `Extract
+  PDF` → chunk → Cohere embed → `status: ready` in ~4s. The coach then answered a no-show
+  question citing the PDF by name, quoting the clause, and cross-referencing the existing
+  SOP.txt (flagged the 48h-vs-24h discrepancy). Doc left in Supabase — it's a good demo asset.
 - WF-03 `Cohere Embed` uses a Header Auth cred (`Cohere Header`); TOOL `Embed Query` uses the
   predefined `cohereApi` cred (`Cohere account`) — both work on n8n 2.35.3, left as-is.
 - Retrieval quality on a 1-doc / 1-chunk corpus is marginal; revisit chunk size + threshold
@@ -250,9 +253,22 @@ Update this when a milestone is actually done and verified — not when it's sta
 - Playwright `webServer` uses `npm run start`, so `e2e.yml` builds first; `reuseExistingServer`
   is off in CI.
 
+## Pre-Phase-10 closeout (from the PROJECT_SPEC gap audit, 2026-08-31)
+- [x] Real PDF tested through WF-03 end to end (see Phase 4 notes)
+- [x] README: "Using AI to test, diagnose and fix" section — the TDD-loop evidence the 15%
+      rubric line asks for (symptom → root cause → fix + regression lock table)
+- [x] README + `.env.example` + `docs/DEPLOYMENT.md`: Fish-STT → Groq-Whisper deviation
+      documented (Fish `/v1/asr` has no free tier; Fish still does TTS; one-node swap back)
+- [x] `docs/DEPLOYMENT.md`: exact Vercel env-var table + a 6-step deploy runbook
+- [ ] **User:** send Emman the STT-deviation note (draft below / in chat)
+- [ ] **User:** confirm the GitHub Actions `quality` + `e2e` runs are green on the pushed commits
+- [ ] (optional bonus) wire `session_context` so the agent recalls the previous session —
+      deferred; only if time remains after deploy
+
 ## Phase 10 — Deployment
-- [ ] Deployed to Vercel
-- [ ] All env vars set in Vercel
-- [ ] Vercel Deployment Checks configured against CI (docs/DEPLOYMENT.md)
-- [ ] Verified a deliberately broken commit fails to promote
-- [ ] Final smoke test against the live production URL
+- [ ] Deployed to Vercel (`docs/DEPLOYMENT.md` runbook)
+- [ ] Env vars set in Vercel — the "Required by the deployed app" block only (9 vars, table in DEPLOYMENT.md)
+- [ ] Vercel Deployment Checks configured against the `quality` + `e2e` GitHub jobs
+- [ ] Verified a deliberately broken commit fails to promote (then reverted)
+- [ ] n8n workflows active on Railway incl. WF-05 error handler (`n8n/PHASE_9_ERROR_HANDLER.md`)
+- [ ] Final smoke test against the live production URL (core journey + one voice turn), pointed at Railway n8n

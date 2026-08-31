@@ -54,6 +54,39 @@ git push / PR
 
 ## Environment variables on Vercel
 
-Set every variable from `.env.example` in Project Settings → Environment Variables, scoped
-appropriately (Production / Preview / Development). Never commit an actual `.env` file — see
-`docs/SECURITY.md`.
+Set only the **"Required by the deployed app"** block of `.env.example` in Project Settings →
+Environment Variables, scoped to Production (and Preview, if you want preview deploys to work):
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only; bypasses RLS) |
+| `N8N_CHAT_WEBHOOK_URL` | `https://primary-production-c0ce.up.railway.app/webhook/coach` |
+| `N8N_VOICE_WEBHOOK_URL` | `…/webhook/voice` |
+| `N8N_KNOWLEDGE_WEBHOOK_URL` | `…/webhook/knowledge` |
+| `N8N_SUMMARY_WEBHOOK_URL` | `…/webhook/summary` |
+| `N8N_WEBHOOK_SECRET` | the shared bearer secret n8n validates |
+| `NEXT_PUBLIC_CLINIC_ID` | `80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4` |
+| `NEXT_PUBLIC_CLINIC_NAME` | `V-Unite Aesthetic Clinic` |
+
+**Do not** set `SUPABASE_DB_URL` (migrations run locally, never on Vercel) or the
+n8n-reference block (model / embeddings / Fish / Groq — those live in the n8n credential store).
+Never commit an actual `.env` file — see `docs/SECURITY.md`.
+
+## Deploy runbook
+
+One-time, in order:
+
+1. **Import the repo** at vercel.com → New Project → `argylleee/v-unite-voice-AI-coach`. Framework
+   auto-detects as Next.js; leave build/output settings default.
+2. **Add the env vars** from the table above (Production scope).
+3. **First deploy** runs automatically. Confirm the build succeeds and the preview URL serves
+   `/coach`, `/knowledge`, `/sessions`.
+4. **Wire the gate:** Project Settings → Build & Deployment → Deployment Checks → Add Checks →
+   GitHub → select the **`quality`** job (from `ci.yml`) and the **`e2e`** job (from `e2e.yml`).
+5. **Prove it gates:** push a commit that deliberately breaks a check — e.g. a TS error in a
+   throwaway file on a branch, merged to `main` — and confirm the production domain stays on the
+   previous deployment while the checks are red. Then revert.
+6. **Smoke the live URL:** open the production domain, run the core journey (ask a coaching
+   question → get an evidenced answer → end session → see the summary), and one voice turn.
+   Point at the **Railway** n8n instance, not a local one.
