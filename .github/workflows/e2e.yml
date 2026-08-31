@@ -24,19 +24,9 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Production build
+        # No env needed: every env read in the app is lazy (request-time), and the e2e run
+        # stubs all /api/* calls with page.route().
         run: npm run build
-        env:
-          # The e2e run stubs every /api/* call with page.route(), so these only need to be
-          # present for the build/route modules to load — not real.
-          N8N_CHAT_WEBHOOK_URL: https://example.invalid/webhook/coach
-          N8N_VOICE_WEBHOOK_URL: https://example.invalid/webhook/voice
-          N8N_KNOWLEDGE_WEBHOOK_URL: https://example.invalid/webhook/knowledge
-          N8N_SUMMARY_WEBHOOK_URL: https://example.invalid/webhook/summary
-          N8N_WEBHOOK_SECRET: ci-not-real
-          SUPABASE_URL: https://example.invalid
-          SUPABASE_SERVICE_ROLE_KEY: ci-not-real
-          NEXT_PUBLIC_CLINIC_ID: 80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4
-          NEXT_PUBLIC_CLINIC_NAME: V-Unite Aesthetic Clinic
 
       - name: Run E2E suite
         run: npm run test:e2e
