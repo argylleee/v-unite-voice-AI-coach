@@ -10,6 +10,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// STT -> agent -> TTS is the slowest path (~18-25s observed). Hobby default is 10s, max 60s.
+export const maxDuration = 60;
 
 // POST /api/voice — multipart upload of a recorded audio blob (field `audio` + `clinicId`).
 // Forwards it to the n8n voice webhook (WF-02), which runs Fish Audio STT -> the WF-01 coaching

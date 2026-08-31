@@ -10,6 +10,9 @@ import { ChatRequestSchema } from "@/lib/validation/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel serverless cap. Coach turns (DeepSeek + tools on free-tier Railway) can run 30s+;
+// the Hobby default is 10s. 60s is the Hobby maximum and matches COACH_TIMEOUT_MS.
+export const maxDuration = 60;
 
 // POST /api/coach — validates the request, forwards it server-side to the n8n chat webhook
 // (bearer-secret protected), validates the agent's structured response, and returns it.

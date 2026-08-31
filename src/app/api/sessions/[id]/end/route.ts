@@ -5,6 +5,8 @@ import { SessionIdParamSchema, SessionSummarySchema } from "@/lib/validation/ses
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// End-of-session summary is one more DeepSeek call (WF-04). Hobby default 10s, max 60s.
+export const maxDuration = 60;
 
 // POST /api/sessions/<id>/end — load the transcript, ask WF-04 (one LLM call, docs/AI_AGENT.md)
 // for { summary, key_findings, action_plan }, persist it, return it.
