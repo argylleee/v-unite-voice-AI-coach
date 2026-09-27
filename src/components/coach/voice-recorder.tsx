@@ -2,10 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Push-to-record. Chrome records audio/webm;opus, Safari audio/mp4 — both accepted downstream
-// (Groq Whisper, n8n/PHASE_6_VOICE.md). The component owns idle / recording / mic-error; the
-// parent owns the uploading → transcribing → thinking → speaking pipeline.
-
 type State = "idle" | "recording" | "error";
 
 export function VoiceRecorder({
@@ -57,7 +53,7 @@ export function VoiceRecorder({
 
   function stop() {
     if (tickRef.current) clearInterval(tickRef.current);
-    recRef.current?.state === "recording" && recRef.current.stop();
+    if (recRef.current?.state === "recording") recRef.current.stop();
     setState("idle");
   }
 
@@ -66,14 +62,15 @@ export function VoiceRecorder({
       <button
         type="button"
         onClick={() => setState("idle")}
-        className="inline-flex h-[2.75rem] shrink-0 items-center rounded-[3px] border border-[var(--danger-ink)] bg-[var(--danger-soft)] px-3 text-xs text-[var(--danger-ink)]"
+        className="h-[46px] shrink-0 rounded-full bg-danger-soft px-4 font-mono text-[0.68rem] font-medium tracking-[0.06em] text-danger uppercase transition-all active:scale-[0.97]"
       >
-        Mic blocked — retry
+        Mic blocked
       </button>
     );
   }
 
   const recording = state === "recording";
+
   return (
     <button
       type="button"
@@ -82,28 +79,41 @@ export function VoiceRecorder({
       aria-pressed={recording}
       aria-label={recording ? "Stop recording" : "Record a question"}
       className={[
-        "flex h-[2.75rem] shrink-0 items-center gap-2 rounded-[3px] border px-3 text-sm transition-colors disabled:opacity-40",
+        "flex h-[46px] shrink-0 items-center gap-2.5 rounded-full px-4 transition-all duration-200 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40",
         recording
-          ? "border-[var(--danger-ink)] bg-[var(--danger-soft)] text-[var(--danger-ink)]"
-          : "border-[var(--rule-strong)] bg-[var(--paper-raised)] text-[var(--ink-2)] hover:border-[var(--accent)] hover:text-[var(--accent-ink)]",
+          ? "bg-danger-soft text-danger"
+          : "bg-surface-2 text-ink-2 hover:bg-brand-soft hover:text-brand",
       ].join(" ")}
     >
-      <span
-        aria-hidden
-        className={[
-          "block h-2.5 w-2.5",
-          recording
-            ? "rounded-[1px] bg-current [animation:vu-pulse_1.2s_ease-in-out_infinite]"
-            : "rounded-full border-[1.5px] border-current",
-        ].join(" ")}
-      />
       {recording ? (
-        <span className="font-mono tabular-nums text-xs">
-          {String(Math.floor(seconds / 60)).padStart(1, "0")}:
-          {String(seconds % 60).padStart(2, "0")}
-        </span>
+        <>
+          <span aria-hidden className="flex h-4 items-end gap-[3px]">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span
+                key={i}
+                className="w-[3px] origin-bottom rounded-full bg-current"
+                style={{
+                  height: "100%",
+                  animation: `wave 0.7s ease-in-out ${i * 0.1}s infinite`,
+                }}
+              />
+            ))}
+          </span>
+          <span className="font-mono text-[0.72rem] font-medium tabular-nums">
+            {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+            {String(seconds % 60).padStart(2, "0")}
+          </span>
+        </>
       ) : (
-        <span>Speak</span>
+        <>
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3" />
+          </svg>
+          <span className="hidden font-mono text-[0.7rem] font-medium tracking-[0.06em] uppercase sm:inline">
+            Speak
+          </span>
+        </>
       )}
     </button>
   );

@@ -1,6 +1,19 @@
+"use client";
+
+import { useState } from "react";
 import type { CoachApiResponse } from "@/lib/validation/agent-response";
-import { Notice, Section } from "@/components/chart";
+import { Alert, FeedbackButtons } from "@/components/chart";
 import { EvidenceList } from "./evidence-list";
+
+function SectionTitle({ children, count }: { children: string; count?: string }) {
+  return (
+    <div className="mb-3.5 flex items-center gap-3">
+      <h3 className="label shrink-0 text-ink-2">{children}</h3>
+      <span className="h-px flex-1 bg-line" />
+      {count ? <span className="label shrink-0 text-[0.62rem]">{count}</span> : null}
+    </div>
+  );
+}
 
 export function CoachAnswer({
   data,
@@ -9,68 +22,110 @@ export function CoachAnswer({
   data: CoachApiResponse;
   onAskFollowUp?: (q: string) => void;
 }) {
+  const [voted, setVoted] = useState<boolean | null>(null);
+
   return (
-    <div className="space-y-4">
+    <article className="space-y-6">
       {data.degraded ? (
-        <Notice tone="warn" title="Partial answer">
-          The coach couldn&apos;t assemble a fully sourced answer this time.
-        </Notice>
+        <Alert type="warning" title="Partial answer">
+          The coach couldn’t assemble a fully sourced answer this time.
+        </Alert>
       ) : null}
 
-      <p className="max-w-[var(--measure)] text-[1.0625rem] leading-relaxed text-[var(--ink)]">
-        {data.answer}
-      </p>
+      {/* The answer itself, set as a piece of editorial prose. The measure is
+          capped even though the column runs wider — prose wants ~64ch. */}
+      <div className="max-w-[64ch] border-l-2 border-gold pl-4 sm:pl-5">
+        <p className="font-display text-[1.08rem] leading-[1.65] text-ink sm:text-[1.14rem]">
+          {data.answer}
+        </p>
+      </div>
 
+      {/* Evidence */}
       {data.evidence.length > 0 || !data.degraded ? (
-        <Section label="Findings" aside={`${data.evidence.length} cited`}>
+        <section>
+          <SectionTitle count={`${data.evidence.length} source${data.evidence.length === 1 ? "" : "s"}`}>
+            What it found
+          </SectionTitle>
           <EvidenceList items={data.evidence} />
-        </Section>
+        </section>
       ) : null}
 
+      {/* Insights */}
       {data.insights.length > 0 ? (
-        <Section label="Assessment">
-          <ul className="max-w-[var(--measure)] space-y-1.5">
+        <section>
+          <SectionTitle>The read</SectionTitle>
+          <ul className="space-y-2.5">
             {data.insights.map((s, i) => (
-              <li key={i} className="grid grid-cols-[1rem_1fr] gap-x-2 text-sm text-[var(--ink-2)]">
-                <span aria-hidden className="text-[var(--rule-strong)]">
-                  —
-                </span>
+              <li key={i} className="flex items-start gap-3 text-[0.9rem] leading-relaxed text-ink-2">
+                <span
+                  aria-hidden
+                  className="mt-[9px] h-1 w-4 shrink-0 rounded-full bg-gold"
+                />
                 <span>{s}</span>
               </li>
             ))}
           </ul>
-        </Section>
+        </section>
       ) : null}
 
+      {/* Recommendations */}
       {data.recommendations.length > 0 ? (
-        <Section label="Plan">
-          <ol className="max-w-[var(--measure)] space-y-1.5">
+        <section>
+          <SectionTitle>What to do next</SectionTitle>
+          <ol className="space-y-0">
             {data.recommendations.map((s, i) => (
               <li
                 key={i}
-                className="grid grid-cols-[1.5rem_1fr] gap-x-2 text-sm text-[var(--ink)]"
+                className={[
+                  "flex items-start gap-4 py-3",
+                  i > 0 ? "border-t border-line" : "",
+                ].join(" ")}
               >
-                <span className="font-mono text-[0.75rem] text-[var(--ink-3)]">
+                <span className="mt-[3px] font-mono text-[0.7rem] font-medium tracking-[0.06em] text-gold-ink tabular-nums">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span>{s}</span>
+                <span className="text-[0.9rem] leading-relaxed text-ink">{s}</span>
               </li>
             ))}
           </ol>
-        </Section>
+        </section>
       ) : null}
 
+      {/* Follow-up */}
       {data.follow_up_question ? (
         <button
           type="button"
           onClick={() => onAskFollowUp?.(data.follow_up_question as string)}
           disabled={!onAskFollowUp}
-          className="mt-1 max-w-[var(--measure)] border-t border-[var(--rule)] pt-3 text-left text-sm text-[var(--accent-ink)] hover:text-[var(--accent)] disabled:text-[var(--ink-3)]"
+          className="group flex w-full items-center gap-3 rounded-xl bg-surface-2 px-4 py-3.5 text-left transition-all duration-200 hover:bg-brand-soft active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
         >
-          <span className="record-label mr-2">Follow up</span>
-          {data.follow_up_question}
+          <svg
+            className="h-4 w-4 shrink-0 text-brand transition-transform duration-200 group-hover:rotate-180"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            viewBox="0 0 24 24"
+          >
+            <path d="M21 12a9 9 0 1 1-9-9" />
+            <path d="M21 3v6h-6" />
+          </svg>
+          <span className="text-[0.9rem] leading-snug text-ink-2">
+            <span className="font-semibold text-ink">Ask a follow-up — </span>
+            {data.follow_up_question}
+          </span>
         </button>
       ) : null}
-    </div>
+
+      {/* Feedback */}
+      <div className="border-t border-line pt-4">
+        {voted !== null ? (
+          <p className="font-mono text-[0.7rem] tracking-[0.06em] text-ink-3 uppercase">
+            {voted ? "Noted as accurate — thank you." : "Noted — the coach will do better."}
+          </p>
+        ) : (
+          <FeedbackButtons onVote={(helpful) => setVoted(helpful)} />
+        )}
+      </div>
+    </article>
   );
 }

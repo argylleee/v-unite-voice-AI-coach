@@ -1,60 +1,111 @@
 @import "tailwindcss";
 
 /*
-  V-UNITE COACH — visual contract (seed d58f76c2)
-  THESIS: the coach as a clinic chart. It refuses the assistant-bubble + hero-metric arrangement;
-    an answer is a record with Findings / Assessment / Plan, and its evidence is cited like lab values.
-  OWN-WORLD: ink on warm chart paper, hairline rules, one clinical teal. Public Sans (records
-    grotesk) for text, Spline Sans Mono for every figure, unit, source label, and ID. Sectioned
-    by tracked uppercase dividers, not cards. Nothing decorative.
-  STORY: the owner asks a business question, reads a sourced finding, an assessment, and a
-    prioritised plan, and can see every number and document passage it stands on.
-  FIRST VIEWPORT: a left binder rail (Coach / Knowledge / Sessions); the coach column holds the
-    conversation, the composer pinned at the foot with a record/stop voice control beside the field.
-  FORM: clinical chart / medical record, #6 of the grounded list. seed d58f76c2.
-  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the
-    verdict, DESIGN.md, and every shipping raster carrying its provenance.
+  V-UNITE — "Warm Editorial Instrument"
+  A premium aesthetic clinic's business companion: warm paper, harbour blue, gold
+  hairlines. Two families only — Fraunces for display, Public Sans for the rest.
+  Light = daylight consulting room. Dark = evening ledger.
 */
 
+@theme {
+  /* Type — registered here so Tailwind emits .font-sans / .font-mono / .font-display.
+     Two families at most: Fraunces sets every heading, Public Sans sets everything
+     else. --font-mono deliberately aliases Public Sans so figures stay tabular
+     without pulling in a third family. Times New Roman remains the last-resort
+     serif in the stack. */
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-public-sans), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  /* Surfaces */
+  --color-paper: #faf7f2;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4eee4;
+  --color-line: #e7ded1;
+  --color-line-2: #d5c9b7;
+
+  /* Ink */
+  --color-ink: #141d26;
+  --color-ink-2: #465666;
+  --color-ink-3: #7c8a99;
+
+  /* Brand — harbour blue against warm paper */
+  --color-brand: #1f4f7c;
+  --color-brand-deep: #16395b;
+  --color-brand-soft: #e5edf6;
+  --color-on-brand: #f5f9fd;
+
+  /* Gold — decorative hairline value, and a darker one that passes as text */
+  --color-gold: #c9a96e;
+  --color-gold-ink: #8a6a28;
+  --color-gold-soft: #f7efdd;
+
+  /* Status */
+  --color-danger: #b23c30;
+  --color-danger-soft: #fbeeea;
+  --color-warn: #9a6b06;
+  --color-warn-soft: #fbf3e0;
+
+  --radius: 14px;
+}
+
+/* Dark: "evening ledger" — every theme token re-pointed, no component changes needed */
 :root {
   color-scheme: light;
+  --shadow-1: 0 1px 2px rgba(20, 29, 38, 0.05), 0 2px 8px rgba(20, 29, 38, 0.04);
+  --shadow-2: 0 2px 4px rgba(20, 29, 38, 0.06), 0 10px 30px rgba(20, 29, 38, 0.07);
+  --paper-grain: radial-gradient(1200px 600px at 15% -10%, rgba(201, 169, 110, 0.1), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(31, 79, 124, 0.07), transparent 55%);
 
-  --paper: #f6f4ee;
-  --paper-raised: #fffdf8;
-  --paper-sunk: #efece3;
+  /* How much viewport the mobile shell chrome eats, so a full-height screen (the
+     coach) can size itself with calc() instead of overflowing past the tab bar. */
+  --shell-top: 64px;
+  --shell-bottom: 68px;
+}
 
-  --ink: #1e2320;
-  --ink-2: #495049;
-  --ink-3: #6c746c;
+html.dark {
+  color-scheme: dark;
 
-  --rule: #d9d4c6;
-  --rule-strong: #b7b0a0;
+  --color-paper: #10171f;
+  --color-surface: #161f29;
+  --color-surface-2: #1c2733;
+  --color-line: #273442;
+  --color-line-2: #37485a;
 
-  --accent: #0f6b5f;
-  --accent-ink: #0a473f;
-  --accent-soft: #e0eeeb;
+  --color-ink: #e8eef5;
+  --color-ink-2: #b0c0cf;
+  --color-ink-3: #7a8a9a;
 
-  --warn-ink: #7c5410;
-  --warn-soft: #f4ead1;
+  --color-brand: #7db1e4;
+  --color-brand-deep: #a3c9ee;
+  --color-brand-soft: #16293d;
+  --color-on-brand: #0b1520;
 
-  --danger-ink: #8c3a33;
-  --danger-soft: #f2ded9;
+  --color-gold: #d9bc7a;
+  --color-gold-ink: #ddc288;
+  --color-gold-soft: #2b2618;
 
-  --focus: #0f6b5f;
+  --color-danger: #ef9b8f;
+  --color-danger-soft: #3a1f1b;
+  --color-warn: #e0b45c;
+  --color-warn-soft: #332a16;
 
-  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
-  --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", "Cascadia Mono", Menlo,
-    Consolas, monospace;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 14px 40px rgba(0, 0, 0, 0.4);
+  --paper-grain: radial-gradient(1200px 600px at 15% -10%, rgba(217, 188, 122, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(125, 177, 228, 0.05), transparent 55%);
+}
 
-  --rail-w: 14rem;
-  --measure: 64ch;
-  --content: 44rem;
-  --content-wide: 50rem;
+/* Desktop has a sidebar rather than a top bar and a tab bar: nothing to compensate for. */
+@media (min-width: 768px) {
+  :root {
+    --shell-top: 0px;
+    --shell-bottom: 0px;
+  }
 }
 
 * {
-  border-color: var(--rule);
+  border-color: var(--color-line);
 }
 
 html {
@@ -63,85 +114,256 @@ html {
 
 body {
   margin: 0;
-  background: var(--paper);
-  color: var(--ink);
+  background-color: var(--color-paper);
+  background-image: var(--paper-grain);
+  background-attachment: fixed;
+  color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 0.9375rem;
   line-height: 1.6;
-  font-feature-settings: "cv05" 1, "ss01" 1;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/* Browser surfaces carry the design too */
 ::selection {
-  background: var(--accent);
-  color: var(--paper-raised);
+  background: var(--color-brand);
+  color: var(--color-on-brand);
+}
+textarea::selection,
+input::selection {
+  background: var(--color-gold);
+  color: #0e1720;
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
-/* tabular figures everywhere numbers appear as data */
 .tnum,
-.font-mono,
 [class*="font-mono"] {
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
-/* thin, paper-toned scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--rule-strong) transparent;
+  scrollbar-color: var(--color-line-2) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: var(--rule-strong);
-  border: 3px solid var(--paper);
+  background: var(--color-line-2);
+  border: 3px solid transparent;
+  background-clip: content-box;
   border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-3);
+  background-clip: content-box;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* In @layer base so a bare `text-*` utility on a link (e.g. a primary button that is a
-   <Link>) still wins the cascade. Unlayered, this rule would beat every Tailwind utility. */
 @layer base {
   a {
-    color: var(--accent-ink);
+    color: inherit;
     text-underline-offset: 0.18em;
-    text-decoration-thickness: 1px;
+    text-decoration-color: var(--color-gold);
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
   }
 }
 
-/* the record divider: FINDINGS / ASSESSMENT / PLAN */
-.record-label {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+/* ---- Editorial primitives ---------------------------------------------- */
+
+/* ---- Editorial primitives ----------------------------------------------
+   Declared inside @layer components so Tailwind utilities still win: these are
+   defaults for a class, not overrides of one (an unlayered rule would beat every
+   layered utility, which quietly killed label colours and sizes all over). */
+
+@layer components {
+  .font-display {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+
+  /* Tracked label — the instrument's engraving. Set in Public Sans (no third
+     family), carried entirely by case, weight and letter-spacing. */
+  .label {
+    font-family: var(--font-sans);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  /* A hairline that runs to the edge, with the label sitting on it */
+  .rule {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .grain-line {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--color-line) 0 1px,
+      transparent 1px 6px
+    );
+  }
+
+  /* Shimmering placeholder — the building block of every loading state. */
+  .skeleton {
+    background-color: var(--color-surface-2);
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.7s linear infinite;
+  }
+
+  html.dark .skeleton {
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+  }
 }
 
-@keyframes vu-pulse {
-  0%,
-  100% {
-    opacity: 0.35;
+/* ---- Motion ------------------------------------------------------------ */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
-  50% {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
     opacity: 1;
   }
 }
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -150% 0;
+  }
+}
+
+@keyframes blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out both;
+}
+.animate-rise {
+  animation: rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+.animate-blink {
+  animation: blink 1.2s steps(1, end) infinite;
+}
+
+/* Stagger children of an editorial block */
+.stagger > * {
+  animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.17s; }
+.stagger > *:nth-child(5) { animation-delay: 0.22s; }
+.stagger > *:nth-child(6) { animation-delay: 0.27s; }
+.stagger > *:nth-child(7) { animation-delay: 0.32s; }
+.stagger > *:nth-child(8) { animation-delay: 0.37s; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
