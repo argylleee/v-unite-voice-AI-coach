@@ -35,6 +35,16 @@ Migration 0005 has been applied to the live Supabase database. The search functi
 the five arguments used by `knowledge_search`. Existing documents are intentionally hidden from
 the public demo until reviewed and marked `demo_curated=true`.
 
+On 2026-09-28, a read-only comparison found all 100 customer rows in the configured demo clinic
+exactly matched the deterministic seed. Its three existing documents were uncurated and its 33
+older sessions had no visitor owner, so the new public routes do not expose them. The clinic's
+`demo_synthetic` flag was then enabled. After the GitHub deployment passed, production
+`/api/knowledge` and `/api/sessions` each returned HTTP 200 with zero visible legacy records.
+A short production coach greeting returned HTTP 200, but a cancellation-policy question returned
+HTTP 502 twice while the same question sent directly to the DuckDNS WF-01 returned HTTP 200.
+The remaining production failure needs Vercel function logs and its Production webhook URL
+checked in the signed-in Vercel dashboard; the cause has not yet been established.
+
 For the already imported workflows, edit these nodes in the n8n editor and publish both workflows:
 
 1. In **WF-01 Chat Coach → AI Coach Agent**, set **Max Iterations** to `4`. In its system message,

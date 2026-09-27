@@ -109,10 +109,10 @@ clinic unless `SEED_REPLACE_EXISTING=1` is set for that run; it deletes and recr
 customers. Never set this flag for a clinic containing real data. Verify each existing knowledge
 document individually before setting `demo_curated=true`; otherwise it remains hidden.
 
-Production coach calls currently return n8n `agent_error` (HTTP 502). Inspect the first failing
-node in the active Railway n8n WF-01 execution and repair its credential, tool, or model error
-before treating a deployment as healthy. The exported workflow alone cannot identify the failing
-live node. Once the migration, workflows, and app are deployed, verify that a fresh browser can
+After this rollout, a deployed `/api/coach` HTTP 502 with no failed execution in the owner-operated
+n8n WF-01 should be traced from the Vercel function logs and its Production webhook URL. A direct
+DuckDNS webhook success does not prove Vercel is configured to call it. Once the migration,
+workflows, and app are deployed, verify that a fresh browser can
 create a session, make a coach turn, end it, and read only its own transcript; another browser
 must receive 404 for that session. Also verify one synthetic upload is private to its visitor.
 
