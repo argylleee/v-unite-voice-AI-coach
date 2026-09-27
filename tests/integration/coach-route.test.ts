@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentResponse } from "../../src/lib/validation/agent-response";
 
 const recordTurn = vi.fn();
-vi.mock("@/lib/db/sessions", () => ({ recordTurn }));
+const sessionBelongsToVisitor = vi.fn().mockResolvedValue(true);
+vi.mock("@/lib/db/sessions", () => ({ recordTurn, sessionBelongsToVisitor }));
+vi.mock("@/lib/demo/rate-limit", () => ({ enforceDemoLimit: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/demo/synthetic", () => ({ requireSyntheticDemoClinic: vi.fn().mockResolvedValue(null) }));
 
 const { POST } = await import("../../src/app/api/coach/route");
 
@@ -36,7 +39,7 @@ const AGENT_RESPONSE: AgentResponse = {
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost/api/coach", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", cookie: `vu_demo_visitor=${"a".repeat(43)}` },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -49,8 +52,10 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
+  sessionBelongsToVisitor.mockResolvedValue(true);
   vi.stubEnv("N8N_CHAT_WEBHOOK_URL", WEBHOOK_URL);
   vi.stubEnv("N8N_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("NEXT_PUBLIC_CLINIC_ID", VALID_BODY.clinicId);
 });
 
 afterEach(() => {
@@ -118,6 +123,8 @@ describe("POST /api/coach", () => {
     expect(res.status).toBe(200);
     expect(recordTurn).toHaveBeenCalledWith(
       sessionId,
+      VALID_BODY.clinicId,
+      expect.any(String),
       VALID_BODY.message,
       "chat",
       expect.objectContaining({ answer: AGENT_RESPONSE.answer }),
@@ -134,6 +141,15 @@ describe("POST /api/coach", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(AGENT_RESPONSE);
+  });
+
+  it("rejects a session that does not belong to this visitor before calling n8n", async () => {
+    sessionBelongsToVisitor.mockResolvedValueOnce(false);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await POST(makeRequest({ ...VALID_BODY, sessionId: "22222222-2222-2222-2222-222222222222" }));
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("recovers when the model wraps its JSON in prose + a code fence", async () => {

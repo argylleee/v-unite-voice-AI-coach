@@ -13,7 +13,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.18.0
           cache: npm
 
       - name: Install dependencies
@@ -37,7 +37,7 @@ jobs:
       # Design-quality gate (docs/DEVELOPMENT_PLAN.md Phase 8, docs/UI_DESIGN.md). Fails the
       # check on any unaddressed "AI slop" finding in src/.
       - name: Impeccable design lint
-        run: npx impeccable detect --json src/
+        run: npm exec -- impeccable detect --json src/
 
   e2e:
     name: e2e
@@ -47,7 +47,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.18.0
           cache: npm
 
       - name: Install dependencies
@@ -93,7 +93,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.18.0
           cache: npm
 
       - name: Install Vercel CLI

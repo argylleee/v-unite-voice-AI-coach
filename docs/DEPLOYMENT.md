@@ -50,7 +50,7 @@ want PR previews to function). These are the "Required by the deployed app" bloc
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key (server-only; bypasses RLS) |
-| `N8N_CHAT_WEBHOOK_URL` | `https://primary-production-c0ce.up.railway.app/webhook/coach` |
+| `N8N_CHAT_WEBHOOK_URL` | `https://aldreisantua-n8n.duckdns.org/webhook/coach` after cutover |
 | `N8N_VOICE_WEBHOOK_URL` | `…/webhook/voice` |
 | `N8N_KNOWLEDGE_WEBHOOK_URL` | `…/webhook/knowledge` |
 | `N8N_SUMMARY_WEBHOOK_URL` | `…/webhook/summary` |
@@ -99,11 +99,28 @@ Push to `main`. The `deploy` job runs after `quality` + `e2e` and publishes. Ope
 5. Undo: `git revert HEAD --no-edit && git push origin main` (or delete the file). Checks go
    green, `deploy` runs, production updates.
 
+## Public demo guardrail rollout
+
+Before deploying the public-demo guardrails, apply `supabase/migrations/0005_public_demo_guardrails.sql`
+and import the matching WF-01, WF-02, WF-03, and `knowledge_search` exports. Keep the app on its
+current version until all components are ready. Review the configured clinic's existing rows to
+confirm they are entirely synthetic. The seed script refuses to replace an existing unverified
+clinic unless `SEED_REPLACE_EXISTING=1` is set for that run; it deletes and recreates that clinic's
+customers. Never set this flag for a clinic containing real data. Verify each existing knowledge
+document individually before setting `demo_curated=true`; otherwise it remains hidden.
+
+Production coach calls currently return n8n `agent_error` (HTTP 502). Inspect the first failing
+node in the active Railway n8n WF-01 execution and repair its credential, tool, or model error
+before treating a deployment as healthy. The exported workflow alone cannot identify the failing
+live node. Once the migration, workflows, and app are deployed, verify that a fresh browser can
+create a session, make a coach turn, end it, and read only its own transcript; another browser
+must receive 404 for that session. Also verify one synthetic upload is private to its visitor.
+
 ## Final live smoke
 
-On the production `*.vercel.app` URL (not localhost), pointed at the **Railway** n8n instance:
+On the production `*.vercel.app` URL (not localhost), pointed at the owner-operated **DuckDNS** n8n instance after the cutover in `n8n/SELF_HOSTED_CUTOVER.md`:
 
 - Ask "Which treatment has the lowest conversion?" -> CoolSculpting + a number + cited evidence.
 - **End & summarise** -> session page with summary + action plan.
 - One voice turn (mic -> speak -> hear the reply).
-- Confirm every workflow on Railway is **Active**, including **WF-05** (`n8n/PHASE_9_ERROR_HANDLER.md`).
+- Confirm every workflow on the owner-operated n8n instance is **Active**, including **WF-05** (`n8n/PHASE_9_ERROR_HANDLER.md`).

@@ -1,0 +1,200 @@
+{
+  "name": "knowledge_search",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cohere.com/v2/embed",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "cohereApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_query\", \"embedding_types\": [\"float\"], \"texts\": [ $json.query ] } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ddccac30-4d0d-48ca-a0a8-0e765b6d9bc3",
+      "name": "Embed Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "cohereApi": {
+          "id": "TaXKeFNT25GyFsf2",
+          "name": "Cohere account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const x=$input.first().json; if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(x.clinicId||''))){throw new Error('clinic_id_required');} if(typeof x.query!=='string'||!x.query.trim()||x.query.length>1000){throw new Error('query_required');} if(x.visitorHash && !/^[0-9a-f]{64}$/.test(String(x.visitorHash))){throw new Error('invalid_visitor_hash');} return [{json:x}];"
+      },
+      "id": "655c7345-dc6d-4ceb-962f-43a340eb7777",
+      "name": "Validate Tool Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [112, 0]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select d.filename as source, m.content, round(m.similarity::numeric, 3) as similarity from match_knowledge_chunks($1::vector, $2::uuid, 8, 0.3, nullif($3::text, 'public')) m join knowledge_documents d on d.id = m.document_id and d.clinic_id = $2::uuid and d.status = 'ready' order by m.similarity desc",
+        "options": {
+          "queryReplacement": "={{ $json.embeddingLiteral }}, {{ $(\"Tool Input\").item.json.clinicId }}, {{ $(\"Tool Input\").item.json.visitorHash || \"public\" }}"
+        }
+      },
+      "id": "eedcbc64-8afc-4ab0-8d11-c3a42364a506",
+      "name": "Match Chunks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        672,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "WiN8JcRALUNP4dCD",
+          "name": "V-Unite Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "clinicId"
+            },
+            {
+              "name": "visitorHash"
+            }
+          ]
+        }
+      },
+      "id": "d96cacc6-d710-46fd-9e91-5a4d42513c8e",
+      "name": "Tool Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "v",
+              "name": "embeddingLiteral",
+              "type": "string",
+              "value": "={{ \"[\" + $json.embeddings.float[0].join(\",\") + \"]\" }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "a37d0c75-49d8-4544-81a2-23c1f779ad6c",
+      "name": "Build Vector Literal",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows=$input.all().map(i=>i.json).filter(r=>r&&r.content);if(rows.length===0){return [{json:{found:0,chunks:[],note:'No matching content in the clinic knowledge base.'}}];}return [{json:{found:rows.length,chunks:rows.map(r=>({source:r.source,content:r.content,similarity:Number(r.similarity)}))}}];"
+      },
+      "id": "49e6e9df-9624-4c46-a39b-87c5cf02d629",
+      "name": "Shape Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Embed Query": {
+      "main": [
+        [
+          {
+            "node": "Build Vector Literal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Chunks": {
+      "main": [
+        [
+          {
+            "node": "Shape Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Tool Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Tool Input": {
+      "main": [
+        [
+          {
+            "node": "Embed Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vector Literal": {
+      "main": [
+        [
+          {
+            "node": "Match Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7376d346-b7d2-4567-81de-582a0b14c7d0",
+  "meta": {
+    "instanceId": "37231671985b58f0b86c578658cf6abdc1cef563000a849380b091f8ba145e95"
+  },
+  "nodeGroups": [],
+  "id": "WUu7dGYIp3THhDw4",
+  "tags": []
+}

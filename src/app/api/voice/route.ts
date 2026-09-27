@@ -1,4 +1,8 @@
 import { n8nVoiceConfig } from "@/lib/env";
+import { recordTurn, sessionBelongsToVisitor } from "@/lib/db/sessions";
+import { isDemoClinic, visitorHash } from "@/lib/demo/visitor";
+import { enforceDemoLimit } from "@/lib/demo/rate-limit";
+import { requireSyntheticDemoClinic } from "@/lib/demo/synthetic";
 import {
   FALLBACK_RESPONSE,
 } from "@/lib/validation/agent-response";
@@ -35,6 +39,23 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!isDemoClinic(meta.data.clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
+  const visitor = visitorHash(request);
+  if (meta.data.sessionId) {
+    if (!visitor) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+    try {
+      if (!(await sessionBelongsToVisitor(meta.data.sessionId, meta.data.clinicId, visitor))) {
+        return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+      }
+    } catch (err) {
+      console.error("[api/voice] session check failed:", err);
+      return Response.json({ ok: false, error: "db_error" }, { status: 502 });
+    }
+  }
 
   const audio = form.get("audio");
   if (!(audio instanceof File)) {
@@ -45,6 +66,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!check.ok) {
     return Response.json({ ok: false, error: check.error }, { status: 400 });
   }
+
+  const limited = await enforceDemoLimit(request, "voice");
+  if (limited) return limited;
 
   let config: { url: string; secret: string };
   try {
@@ -58,6 +82,7 @@ export async function POST(request: Request): Promise<Response> {
   outbound.append("audio", audio, audio.name || "recording.webm");
   outbound.append("clinicId", meta.data.clinicId);
   outbound.append("mode", "voice");
+  if (visitor) outbound.append("visitorHash", visitor);
   if (meta.data.sessionId) outbound.append("sessionId", meta.data.sessionId);
 
   let res: Response;
@@ -67,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
       headers: { authorization: `Bearer ${config.secret}` },
       body: outbound,
       // STT + a full agent turn + TTS — the slowest path in the app.
-      signal: AbortSignal.timeout(90_000),
+      signal: AbortSignal.timeout(55_000),
       cache: "no-store",
     });
   } catch (err) {
@@ -105,6 +130,21 @@ export async function POST(request: Request): Promise<Response> {
       { ok: false, error: "invalid_voice_response", answer: maybeAnswer },
       { status: 502 },
     );
+  }
+
+  if (meta.data.sessionId) {
+    try {
+      await recordTurn(meta.data.sessionId, meta.data.clinicId, visitor!, parsed.data.transcript, "voice", {
+        answer: parsed.data.answer,
+        insights: [],
+        evidence: [],
+        recommendations: [],
+        follow_up_question: null,
+      });
+    } catch (err) {
+      console.error("[api/voice] recordTurn failed:", err);
+      return Response.json({ ok: false, error: "db_error" }, { status: 502 });
+    }
   }
 
   return Response.json(parsed.data, { status: 200 });

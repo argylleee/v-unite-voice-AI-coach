@@ -16,12 +16,14 @@
         -1600,
         0
       ],
+      "id": "b59219a7-6541-417e-b844-a8cdaf313e4f",
+      "webhookId": "c5bc0393-5aa3-4b06-9f32-f3810f5361a5",
       "credentials": {
         "httpHeaderAuth": {
+          "id": "YG7JQivSg3XLMmJo",
           "name": "V-Unite n8n Webhook Secret"
         }
-      },
-      "id": "b59219a7-6541-417e-b844-a8cdaf313e4f"
+      }
     },
     {
       "parameters": {
@@ -39,12 +41,10 @@
               "inputDataFieldName": "audio"
             },
             {
-              "parameterType": "formData",
               "name": "model",
               "value": "whisper-large-v3-turbo"
             },
             {
-              "parameterType": "formData",
               "name": "response_format",
               "value": "json"
             }
@@ -61,17 +61,34 @@
         -1360,
         0
       ],
+      "id": "709f7a25-e99d-4f8e-b6f7-03d3cc3ee20a",
       "credentials": {
         "groqApi": {
+          "id": "yQsOzT0X5jRpem65",
           "name": "Groq account"
         }
       },
-      "onError": "continueErrorOutput",
-      "id": "709f7a25-e99d-4f8e-b6f7-03d3cc3ee20a"
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "mode": "manual",
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"voice_pipeline_failed\" } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        112,
+        128
+      ],
+      "id": "3ed9ecf7-a31e-480f-a6dd-06b942c14123"
+    },
+    {
+      "parameters": {
         "assignments": {
           "assignments": [
             {
@@ -85,12 +102,18 @@
               "name": "clinicId",
               "type": "string",
               "value": "={{ $('Voice Webhook').item.json.body.clinicId }}"
+            },
+            {
+              "id": "visitorHash",
+              "name": "visitorHash",
+              "type": "string",
+              "value": "={{ $(\"Voice Webhook\").item.json.body.visitorHash || \"\" }}"
             }
           ]
         },
         "options": {}
       },
-      "name": "Prep Coach Call",
+      "name": "Build Coach Request",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
@@ -102,44 +125,42 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://primary-production-c0ce.up.railway.app/webhook/coach",
+        "url": "http://127.0.0.1:5678/webhook/coach",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { \"clinicId\": $('Prep Coach Call').item.json.clinicId, \"message\": $('Prep Coach Call').item.json.transcript, \"mode\": \"voice\" } }}",
+        "jsonBody": "={{ { \"clinicId\": $('Build Coach Request').item.json.clinicId, \"message\": $('Build Coach Request').item.json.transcript, \"mode\": \"voice\", \"visitorHash\": $(\"Build Coach Request\").item.json.visitorHash } }}",
         "options": {
-          "timeout": 70000
+          "timeout": 40000
         }
       },
-      "name": "Call WF-01",
+      "name": "Call Chat Coach (WF-01)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -880,
+        -896,
         0
       ],
+      "id": "d4002e22-09c8-4afa-b1ae-1f27bb32c22e",
       "credentials": {
         "httpHeaderAuth": {
+          "id": "YG7JQivSg3XLMmJo",
           "name": "V-Unite n8n Webhook Secret"
         }
       },
-      "onError": "continueErrorOutput",
-      "id": "d4002e22-09c8-4afa-b1ae-1f27bb32c22e"
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
-        "jsCode": "let raw=($json.agent_output||$json.output||'').toString().trim();\nraw=raw.replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();\nlet obj=null;try{obj=JSON.parse(raw);}catch(e){const m=raw.match(/\\{[\\s\\S]*\\}/);if(m){try{obj=JSON.parse(m[0]);}catch(_){}}}\nlet answer=(obj&&typeof obj.answer==='string'&&obj.answer.trim())?obj.answer:raw;\nif(!answer)answer='Sorry, I could not produce an answer for that.';\nreturn [{json:{transcript:$('Prep Coach Call').first().json.transcript,answer:answer}}];"
+        "jsCode": "let raw=($json.agent_output||$json.output||'').toString().trim();\nraw=raw.replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();\nlet obj=null;try{obj=JSON.parse(raw);}catch(e){const m=raw.match(/\\{[\\s\\S]*\\}/);if(m){try{obj=JSON.parse(m[0]);}catch(_){}}}\nlet answer=(obj&&typeof obj.answer==='string'&&obj.answer.trim())?obj.answer:raw;\nif(!answer)answer='Sorry, I could not produce an answer for that.';\nreturn [{json:{transcript:$('Build Coach Request').first().json.transcript,answer:answer}}];"
       },
-      "name": "Parse Answer",
+      "name": "Parse Coach Answer",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -640,
-        0
+        -592,
+        -80
       ],
       "id": "3e39054c-499d-4e18-87e0-a851a7f69212"
     },
@@ -159,49 +180,46 @@
           ]
         },
         "sendBody": true,
-        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ { \"text\": $json.answer, \"reference_id\": \"9a9cf47702da476aa4629e2506d4a857\", \"format\": \"mp3\" } }}",
         "options": {
           "response": {
             "response": {
-              "responseFormat": "file",
-              "outputPropertyName": "data"
+              "responseFormat": "file"
             }
           },
           "timeout": 60000
         }
       },
-      "name": "Fish TTS",
+      "name": "Fish Audio TTS",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
-        -400,
-        0
+        -384,
+        -80
       ],
+      "id": "62ee238c-c554-4345-a117-b7b76d513e78",
       "credentials": {
         "httpHeaderAuth": {
+          "id": "lOgLZPUqsI2fdh93",
           "name": "Fish Audio"
         }
       },
-      "onError": "continueErrorOutput",
-      "id": "62ee238c-c554-4345-a117-b7b76d513e78"
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
-        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (!buf || buf.length < 100) { throw new Error('tts_no_audio'); }\nconst meta = ($input.first().binary || {}).data || {};\nreturn [{ json: {\n  transcript: $('Parse Answer').first().json.transcript,\n  answer: $('Parse Answer').first().json.answer,\n  audio_base64: buf.toString('base64'),\n  audio_mime: meta.mimeType || 'audio/mpeg'\n} }];"
+        "jsCode": "const buf = await this.helpers.getBinaryDataBuffer(0, 'data');\nif (!buf || buf.length < 100) { throw new Error('tts_no_audio'); }\nconst meta = ($input.first().binary || {}).data || {};\nreturn [{ json: {\n  transcript: $('Parse Coach Answer').first().json.transcript,\n  answer: $('Parse Coach Answer').first().json.answer,\n  audio_base64: buf.toString('base64'),\n  audio_mime: meta.mimeType || 'audio/mpeg'\n} }];"
       },
-      "name": "Encode Response",
+      "name": "Encode Audio (base64)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -160,
-        0
+        -128,
+        -144
       ],
-      "onError": "continueErrorOutput",
-      "id": "4793e8ec-101a-45c5-b0f5-be17f52b1712"
+      "id": "4793e8ec-101a-45c5-b0f5-be17f52b1712",
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -211,33 +229,17 @@
           "responseCode": 200
         }
       },
-      "name": "Respond OK",
+      "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        80,
-        0
+        112,
+        -144
       ],
       "id": "069e19b8-2cd7-40b6-b4e1-c0751e58a2ba"
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"ok\": false, \"error\": \"voice_pipeline_failed\" } }}",
-        "options": {
-          "responseCode": 502
-        }
-      },
-      "name": "Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        -160,
-        200
-      ],
-      "id": "3ed9ecf7-a31e-480f-a6dd-06b942c14123"
     }
   ],
+  "pinData": {},
   "connections": {
     "Voice Webhook": {
       "main": [
@@ -254,7 +256,7 @@
       "main": [
         [
           {
-            "node": "Prep Coach Call",
+            "node": "Build Coach Request",
             "type": "main",
             "index": 0
           }
@@ -268,22 +270,22 @@
         ]
       ]
     },
-    "Prep Coach Call": {
+    "Build Coach Request": {
       "main": [
         [
           {
-            "node": "Call WF-01",
+            "node": "Call Chat Coach (WF-01)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call WF-01": {
+    "Call Chat Coach (WF-01)": {
       "main": [
         [
           {
-            "node": "Parse Answer",
+            "node": "Parse Coach Answer",
             "type": "main",
             "index": 0
           }
@@ -297,22 +299,22 @@
         ]
       ]
     },
-    "Parse Answer": {
+    "Parse Coach Answer": {
       "main": [
         [
           {
-            "node": "Fish TTS",
+            "node": "Fish Audio TTS",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fish TTS": {
+    "Fish Audio TTS": {
       "main": [
         [
           {
-            "node": "Encode Response",
+            "node": "Encode Audio (base64)",
             "type": "main",
             "index": 0
           }
@@ -326,11 +328,11 @@
         ]
       ]
     },
-    "Encode Response": {
+    "Encode Audio (base64)": {
       "main": [
         [
           {
-            "node": "Respond OK",
+            "node": "Respond Success",
             "type": "main",
             "index": 0
           }
@@ -345,8 +347,16 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   },
-  "pinData": {}
+  "versionId": "799ec24d-f261-4dba-b0b9-884926cd4b87",
+  "meta": {
+    "instanceId": "37231671985b58f0b86c578658cf6abdc1cef563000a849380b091f8ba145e95"
+  },
+  "nodeGroups": [],
+  "id": "vqq63jCqbWA4k7wP",
+  "tags": []
 }

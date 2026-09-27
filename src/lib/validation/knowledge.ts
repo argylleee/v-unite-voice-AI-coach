@@ -13,7 +13,7 @@ export const ALLOWED_MIME_TYPES = [
 // 4 MB — deliberately under Vercel's ~4.5 MB serverless request-body limit, since the file is
 // forwarded through this route to n8n. Clinic SOPs / policy docs are far smaller than this.
 export const MAX_FILE_BYTES = 4 * 1024 * 1024;
-export const MAX_DOCS_PER_CLINIC = 25;
+export const MAX_DOCS_PER_VISITOR = 25;
 
 export type KnowledgeFileType = "pdf" | "txt";
 
@@ -48,6 +48,26 @@ export function validateUploadFile(file: FileValidationInput): FileValidationRes
     return { ok: false, error: `file_too_large: max ${MAX_FILE_BYTES} bytes` };
   }
   return { ok: true, fileType: ext === ".pdf" ? "pdf" : "txt" };
+}
+
+const MAX_TEXT_CHARS = 100_000;
+
+export async function validateUploadContent(
+  file: File,
+  fileType: KnowledgeFileType,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (fileType === "pdf") {
+    const signature = await file.slice(0, 5).text();
+    return signature === "%PDF-" ? { ok: true } : { ok: false, error: "invalid_pdf" };
+  }
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+    if (!text.trim() || text.includes("\0")) return { ok: false, error: "invalid_text" };
+    if (text.length > MAX_TEXT_CHARS) return { ok: false, error: "text_too_large" };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "invalid_text" };
+  }
 }
 
 export const KnowledgeUploadMetaSchema = z.object({

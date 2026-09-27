@@ -38,11 +38,28 @@ const ChatRequestSchema = z.object({
 });
 ```
 
+## Public demo boundary
+
+The public app is restricted to the configured demo clinic. `clinics.demo_synthetic` must be true
+before any API reads clinic data or calls n8n. A browser-supplied clinic ID never grants access.
+Each browser receives a random HttpOnly visitor cookie; sessions and public uploads are scoped to
+its hash. This is pseudonymous isolation for a public demo, not user authentication. Anyone who
+possesses a visitor's cookie can use that visitor's data, and clearing cookies loses access.
+
+The database-backed rate limiter applies per trusted Vercel client IP to session creation, coach,
+voice, upload, and summarization. A missing/untrusted IP shares one conservative bucket. Rate
+limits bound ordinary use, but they are not a replacement for a provider spending cap or abuse
+monitoring. Existing knowledge documents are hidden by default after migration 0005. Mark
+`demo_curated=true` only after reviewing a document and confirming that it is synthetic and safe
+for every public visitor. Visitor uploads are visible only to their visitor and are never curated
+automatically. The count cap is checked before ingestion; simultaneous requests may cross it, so
+the two-upload daily rate limit is the effective hard bound on public ingestion volume.
+
 ## File upload validation
 
 Only `.pdf` and `.txt` are accepted — reject everything else explicitly (`.exe`, `.js`, `.html`,
 `.zip`, `.docx`, etc.), not implicitly by failed parsing. Enforce a max file size, a max extracted
-text length, and a max number of documents per clinic.
+text length, and a max number of documents per visitor.
 
 ## AI output validation
 

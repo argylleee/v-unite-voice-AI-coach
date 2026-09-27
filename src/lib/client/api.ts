@@ -5,9 +5,10 @@ import type { AgentResponse, CoachApiResponse } from "@/lib/validation/agent-res
 import type { KnowledgeDocument } from "@/lib/validation/knowledge";
 import type { SessionSummary } from "@/lib/validation/session";
 import type { VoiceTurnResponse } from "@/lib/validation/voice";
+import { DEFAULT_DEMO_CLINIC_ID } from "@/lib/demo-clinic";
 
 export const CLINIC_ID =
-  process.env.NEXT_PUBLIC_CLINIC_ID ?? "80a1c835-ed66-4c0c-8c3c-52c5e90fdbf4";
+  process.env.NEXT_PUBLIC_CLINIC_ID ?? DEFAULT_DEMO_CLINIC_ID;
 export const CLINIC_NAME = process.env.NEXT_PUBLIC_CLINIC_NAME ?? "V-Unite Aesthetic Clinic";
 
 export class ApiError extends Error {
@@ -37,7 +38,10 @@ const MESSAGES: Record<string, string> = {
   server_misconfigured: "The coach isn't configured on the server yet.",
   invalid_request: "That request wasn't valid.",
   db_error: "Couldn't reach the clinic records just now.",
-  document_limit_reached: "This clinic has reached its uploaded-document limit.",
+  document_limit_reached: "You have reached the demo's uploaded-document limit.",
+  rate_limited: "The demo's request limit was reached. Please try again later.",
+  rate_limit_unavailable: "The demo is temporarily unavailable. Please try again later.",
+  demo_data_unavailable: "The synthetic demo data is not ready yet.",
   empty_session: "This session has no messages to summarise yet.",
   invalid_summary_response: "The summary came back unreadable. Try ending the session again.",
   invalid_voice_response: "The voice reply came back without audio.",

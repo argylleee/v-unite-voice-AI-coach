@@ -1,7 +1,10 @@
 import { n8nSummaryConfig } from "@/lib/env";
 import { callN8nWebhook, N8nError } from "@/lib/n8n/client";
-import { finalizeSession, getTranscript } from "@/lib/db/sessions";
+import { finalizeSession, getSessionState, getTranscript } from "@/lib/db/sessions";
 import { SessionIdParamSchema, SessionSummarySchema } from "@/lib/validation/session";
+import { demoClinicId, visitorHash } from "@/lib/demo/visitor";
+import { enforceDemoLimit } from "@/lib/demo/rate-limit";
+import { requireSyntheticDemoClinic } from "@/lib/demo/synthetic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +14,7 @@ export const maxDuration = 60;
 // POST /api/sessions/<id>/end — load the transcript, ask WF-04 (one LLM call, docs/AI_AGENT.md)
 // for { summary, key_findings, action_plan }, persist it, return it.
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await context.params;
@@ -20,10 +23,25 @@ export async function POST(
     return Response.json({ ok: false, error: "invalid_session_id" }, { status: 400 });
   }
   const sessionId = parsed.data.id;
+  const visitor = visitorHash(request);
+  if (!visitor) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
+  const clinicId = demoClinicId();
 
   let transcript: { role: string; content: string }[];
   try {
-    transcript = await getTranscript(sessionId);
+    const state = await getSessionState(sessionId, clinicId, visitor);
+    if (!state) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+    if (state.ended_at && state.summary) {
+      return Response.json({
+        ok: true,
+        summary: state.summary,
+        key_findings: state.key_findings ?? [],
+        action_plan: state.action_plan ?? [],
+      });
+    }
+    transcript = await getTranscript(sessionId, clinicId, visitor);
   } catch (err) {
     console.error("[api/sessions/:id/end] transcript load failed:", err);
     return Response.json({ ok: false, error: "db_error" }, { status: 502 });
@@ -31,6 +49,9 @@ export async function POST(
   if (transcript.length === 0) {
     return Response.json({ ok: false, error: "empty_session" }, { status: 400 });
   }
+
+  const limited = await enforceDemoLimit(request, "summary");
+  if (limited) return limited;
 
   let config: { url: string; secret: string };
   try {
@@ -65,8 +86,18 @@ export async function POST(
   }
 
   try {
-    await finalizeSession(sessionId, summary);
+    await finalizeSession(sessionId, clinicId, visitor, summary);
   } catch (err) {
+    // A concurrent end request may have won the database transaction.
+    const stored = await getSessionState(sessionId, clinicId, visitor).catch(() => null);
+    if (stored?.ended_at && stored.summary) {
+      return Response.json({
+        ok: true,
+        summary: stored.summary,
+        key_findings: stored.key_findings ?? [],
+        action_plan: stored.action_plan ?? [],
+      });
+    }
     console.error("[api/sessions/:id/end] persist failed:", err);
     return Response.json({ ok: false, error: "db_error", summary }, { status: 502 });
   }

@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../../src/app/api/voice/route";
 
+const { recordTurn, sessionBelongsToVisitor } = vi.hoisted(() => ({
+  recordTurn: vi.fn(),
+  sessionBelongsToVisitor: vi.fn(),
+}));
+vi.mock("@/lib/db/sessions", () => ({ recordTurn, sessionBelongsToVisitor }));
+vi.mock("@/lib/demo/rate-limit", () => ({ enforceDemoLimit: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/demo/synthetic", () => ({ requireSyntheticDemoClinic: vi.fn().mockResolvedValue(null) }));
+
 // /api/voice forwards a recorded blob to the n8n voice webhook (WF-02) and validates
 // { transcript, answer, audio_base64 } back. n8n + Fish Audio are mocked (docs/TESTING.md).
 
@@ -19,11 +27,16 @@ function audio(type = "audio/webm", bytes = 4096, name = "recording.webm"): File
   return new File([new Uint8Array(bytes)], name, { type });
 }
 
-function req(opts: { audio?: File | null; clinicId?: string | null }): Request {
+function req(opts: { audio?: File | null; clinicId?: string | null; sessionId?: string }): Request {
   const fd = new FormData();
   if (opts.audio !== null && opts.audio !== undefined) fd.append("audio", opts.audio, opts.audio.name);
   if (opts.clinicId !== null) fd.append("clinicId", opts.clinicId ?? CLINIC);
-  return new Request("http://localhost/api/voice", { method: "POST", body: fd });
+  if (opts.sessionId) fd.append("sessionId", opts.sessionId);
+  return new Request("http://localhost/api/voice", {
+    method: "POST",
+    headers: { cookie: `vu_demo_visitor=${"a".repeat(43)}` },
+    body: fd,
+  });
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -34,8 +47,10 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
+  sessionBelongsToVisitor.mockResolvedValue(true);
   vi.stubEnv("N8N_VOICE_WEBHOOK_URL", N8N_URL);
   vi.stubEnv("N8N_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("NEXT_PUBLIC_CLINIC_ID", CLINIC);
 });
 
 afterEach(() => {
@@ -99,6 +114,26 @@ describe("POST /api/voice", () => {
     expect(fwd.get("audio")).toBeInstanceOf(File);
     expect(fwd.get("clinicId")).toBe(CLINIC);
     expect(fwd.get("mode")).toBe("voice");
+  });
+
+  it("stores a successful voice turn in its visitor-owned session", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(GOOD_TURN)));
+    const sessionId = "22222222-2222-2222-2222-222222222222";
+    const res = await POST(req({ audio: audio(), sessionId }));
+    expect(res.status).toBe(200);
+    expect(recordTurn).toHaveBeenCalledWith(
+      sessionId, CLINIC, expect.any(String), GOOD_TURN.transcript, "voice",
+      expect.objectContaining({ answer: GOOD_TURN.answer }),
+    );
+  });
+
+  it("does not call n8n for another visitor's session", async () => {
+    sessionBelongsToVisitor.mockResolvedValueOnce(false);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await POST(req({ audio: audio(), sessionId: "22222222-2222-2222-2222-222222222222" }));
+    expect(res.status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns 502 when n8n fails", async () => {

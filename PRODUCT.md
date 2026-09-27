@@ -85,7 +85,7 @@ answer.
 - Voice of the coach's own copy (already set in the agent prompt): direct, specific,
   non-generic; separates what was observed, what is inferred, and what is recommended; never
   fabricates a clinic fact.
-- No logo, colour, or typography has been committed. Visual direction is open (new-work).
+- Visual direction: warm clinic companion meets data instrument — premium, scannable, decisions-first.
 
 ## Evidence on Hand
 
@@ -108,8 +108,13 @@ answer.
 4. **Every wait is designed.** A 15-second coaching turn with a real thinking state beats an
    instant-looking UI that then freezes.
 5. **Right-size the surface.** This is a decision tool an owner operates, not a marketing
-   page. Clarity, hierarchy, and legible evidence outrank visual ambition — UI/UX is a small
-   slice of how this is judged.
+   page. Clarity, hierarchy, and legible evidence outrank visual ambition.
+6. **Metrics are the gateway.** Key clinic metrics are visible at a glance — tapping one
+   launches a coaching question about it, bridging dashboard and conversation.
+7. **Feedback loops matter.** Users can flag inaccurate answers and mark action-plan items
+   done, turning the tool from a reading surface into a working instrument.
+8. **Dark mode by design.** Owners work after hours; a dark "night chart" mode is a core
+   surface, not an afterthought.
 
 ## Accessibility & Inclusion
 

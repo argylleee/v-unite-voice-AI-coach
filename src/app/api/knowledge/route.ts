@@ -1,10 +1,14 @@
 import { n8nKnowledgeConfig } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isDemoClinic, newOrExistingVisitor, visitorHash } from "@/lib/demo/visitor";
+import { enforceDemoLimit } from "@/lib/demo/rate-limit";
+import { requireSyntheticDemoClinic } from "@/lib/demo/synthetic";
 import {
   KnowledgeListQuerySchema,
   KnowledgeUploadMetaSchema,
-  MAX_DOCS_PER_CLINIC,
+  MAX_DOCS_PER_VISITOR,
   validateUploadFile,
+  validateUploadContent,
 } from "@/lib/validation/knowledge";
 
 export const runtime = "nodejs";
@@ -15,6 +19,12 @@ export const dynamic = "force-dynamic";
 // n8n knowledge-ingestion webhook (WF-03), which extracts/chunks/embeds/stores. No parsing
 // or embedding happens here (docs/ARCHITECTURE.md — Next.js is presentation only).
 export async function POST(request: Request): Promise<Response> {
+  const limited = await enforceDemoLimit(request, "knowledge");
+  if (limited) return limited;
+  const requestSize = Number(request.headers.get("content-length") ?? 0);
+  if (requestSize > 4_500_000) {
+    return Response.json({ ok: false, error: "file_too_large" }, { status: 413 });
+  }
   let form: FormData;
   try {
     form = await request.formData();
@@ -30,6 +40,11 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   const { clinicId } = meta.data;
+  if (!isDemoClinic(clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
 
   const file = form.get("file");
   if (!(file instanceof File)) {
@@ -40,6 +55,11 @@ export async function POST(request: Request): Promise<Response> {
   if (!check.ok) {
     return Response.json({ ok: false, error: check.error }, { status: 400 });
   }
+  const contentCheck = await validateUploadContent(file, check.fileType);
+  if (!contentCheck.ok) {
+    return Response.json({ ok: false, error: contentCheck.error }, { status: 400 });
+  }
+  const visitor = newOrExistingVisitor(request);
 
   let config: { url: string; secret: string };
   try {
@@ -49,18 +69,25 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ ok: false, error: "server_misconfigured" }, { status: 500 });
   }
 
-  const supabase = createAdminClient();
-  const existing = await supabase
+  let existing;
+  try {
+    const supabase = createAdminClient();
+    existing = await supabase
     .from("knowledge_documents")
     .select("id", { count: "exact", head: true })
-    .eq("clinic_id", clinicId);
+    .eq("clinic_id", clinicId)
+    .eq("visitor_token_hash", visitor.hash);
+  } catch (err) {
+    console.error("[api/knowledge] count query failed:", err);
+    return Response.json({ ok: false, error: "db_error" }, { status: 502 });
+  }
   if (existing.error) {
     console.error("[api/knowledge] count query failed:", existing.error);
     return Response.json({ ok: false, error: "db_error" }, { status: 502 });
   }
-  if ((existing.count ?? 0) >= MAX_DOCS_PER_CLINIC) {
+  if ((existing.count ?? 0) >= MAX_DOCS_PER_VISITOR) {
     return Response.json(
-      { ok: false, error: "document_limit_reached", limit: MAX_DOCS_PER_CLINIC },
+      { ok: false, error: "document_limit_reached", limit: MAX_DOCS_PER_VISITOR },
       { status: 409 },
     );
   }
@@ -70,6 +97,7 @@ export async function POST(request: Request): Promise<Response> {
   outbound.append("clinicId", clinicId);
   outbound.append("filename", file.name);
   outbound.append("fileType", check.fileType);
+  outbound.append("visitorHash", visitor.hash);
 
   let res: Response;
   try {
@@ -100,7 +128,13 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  return Response.json({ ok: true, ...(body as object) }, { status: 202 });
+  if (!body || typeof body !== "object" || (body as { ok?: unknown }).ok !== true) {
+    return Response.json({ ok: false, error: "upstream_bad_response" }, { status: 502 });
+  }
+  const status = (body as { status?: unknown }).status === "ready" ? 200 : 202;
+  const response = Response.json(body, { status });
+  if (visitor.cookie) response.headers.set("Set-Cookie", visitor.cookie);
+  return response;
 }
 
 // GET /api/knowledge?clinicId=<uuid> — list this clinic's documents + chunk counts + status,
@@ -115,13 +149,22 @@ export async function GET(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!isDemoClinic(query.data.clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let queryBuilder = supabase
     .from("knowledge_documents")
     .select("id, clinic_id, filename, file_type, status, created_at, knowledge_chunks(count)")
-    .eq("clinic_id", query.data.clinicId)
-    .order("created_at", { ascending: false });
+    .eq("clinic_id", query.data.clinicId);
+  const visitor = visitorHash(request);
+  queryBuilder = visitor
+    ? queryBuilder.or(`demo_curated.eq.true,visitor_token_hash.eq.${visitor}`)
+    : queryBuilder.eq("demo_curated", true);
+  const { data, error } = await queryBuilder.order("created_at", { ascending: false });
 
   if (error) {
     console.error("[api/knowledge] list query failed:", error);

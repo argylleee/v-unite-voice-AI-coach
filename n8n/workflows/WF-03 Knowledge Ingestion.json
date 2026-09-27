@@ -3,87 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "knowledge",
-        "authentication": "headerAuth",
-        "responseMode": "responseNode",
-        "options": {}
-      },
-      "id": "83864f3c-233f-417e-974a-6b8a2eae46be",
-      "name": "Ingest Webhook",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
-      "position": [
-        -2016,
-        128
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "name": "V-Unite n8n Webhook Secret"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "clinicId",
-              "name": "clinicId",
-              "type": "string",
-              "value": "={{ $json.body.clinicId }}"
-            },
-            {
-              "id": "filename",
-              "name": "filename",
-              "type": "string",
-              "value": "={{ $json.body.filename }}"
-            },
-            {
-              "id": "fileType",
-              "name": "fileType",
-              "type": "string",
-              "value": "={{ $json.body.fileType }}"
-            }
-          ]
-        },
-        "includeOtherFields": true,
-        "options": {}
-      },
-      "id": "7f59c192-8274-440e-bff7-e11f1c97479d",
-      "name": "Normalize",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.5,
-      "position": [
-        -1792,
-        128
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "insert into knowledge_documents (clinic_id, filename, file_type, status) values ($1, $2, $3, 'processing') returning id",
-        "options": {
-          "queryReplacement": "={{ $('Normalize').first().json.clinicId }}, {{ $('Normalize').first().json.filename }}, {{ $('Normalize').first().json.fileType }}"
-        }
-      },
-      "id": "90040fe7-f921-448d-b125-d82a9dc6c765",
-      "name": "Insert Document",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.7,
-      "position": [
-        -1568,
-        128
-      ],
-      "credentials": {
-        "postgres": {
-          "name": "V-Unite Supabase"
-        }
-      },
-      "executeOnce": true
-    },
-    {
-      "parameters": {
         "rules": {
           "values": [
             {
@@ -98,7 +17,7 @@
                 "conditions": [
                   {
                     "id": "p",
-                    "leftValue": "={{ $(\"Normalize\").item.json.fileType }}",
+                    "leftValue": "={{ $(\"Normalize Request\").item.json.fileType }}",
                     "rightValue": "pdf",
                     "operator": {
                       "type": "string",
@@ -122,7 +41,7 @@
                 "conditions": [
                   {
                     "id": "t",
-                    "leftValue": "={{ $(\"Normalize\").item.json.fileType }}",
+                    "leftValue": "={{ $(\"Normalize Request\").item.json.fileType }}",
                     "rightValue": "txt",
                     "operator": {
                       "type": "string",
@@ -162,7 +81,8 @@
       "position": [
         -1120,
         32
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -178,20 +98,147 @@
       "position": [
         -1120,
         224
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"documentId\": $(\"Insert Document Row\").first().json.id, \"chunks\": $(\"Split Into Chunks\").all().length, \"status\": \"ready\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a8523538-86cd-4a5f-bf8d-b4a8384ec643",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        224,
+        -96
       ]
     },
     {
       "parameters": {
-        "jsCode": "const s=$input.first().json;const raw=(s.text||s.data||s.content||'').toString();const clean=raw.replace(/\\r\\n/g,'\\n').replace(/\\n{3,}/g,'\\n\\n').trim();if(!clean){throw new Error('no_text_extracted');}const SIZE=2000,OVERLAP=300,out=[];let i=0;while(i<clean.length){const p=clean.slice(i,i+SIZE).trim();if(p)out.push(p);i+=SIZE-OVERLAP;}return out.map((content,idx)=>({json:{content,chunk_index:idx}}));"
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"error\": \"ingestion_failed\" } }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "fa330668-2e8a-441f-a0ba-756711d098f2",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        224,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "knowledge",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "83864f3c-233f-417e-974a-6b8a2eae46be",
+      "name": "Knowledge Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2016,
+        128
+      ],
+      "webhookId": "8ce2fee5-6594-4646-b9f7-3957f68764bc",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YG7JQivSg3XLMmJo",
+          "name": "V-Unite n8n Webhook Secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "clinicId",
+              "name": "clinicId",
+              "type": "string",
+              "value": "={{ $json.body.clinicId }}"
+            },
+            {
+              "id": "filename",
+              "name": "filename",
+              "type": "string",
+              "value": "={{ $json.body.filename }}"
+            },
+            {
+              "id": "fileType",
+              "name": "fileType",
+              "type": "string",
+              "value": "={{ $json.body.fileType }}"
+            },
+            {
+              "id": "visitorHash",
+              "name": "visitorHash",
+              "type": "string",
+              "value": "={{ $json.body.visitorHash || \"\" }}"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "7f59c192-8274-440e-bff7-e11f1c97479d",
+      "name": "Normalize Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1792,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into knowledge_documents (clinic_id, filename, file_type, status, visitor_token_hash) values ($1, $2, $3, 'processing', $4) returning id",
+        "options": {
+          "queryReplacement": "={{ $('Normalize Request').first().json.clinicId }}, {{ $('Normalize Request').first().json.filename }}, {{ $('Normalize Request').first().json.fileType }}, {{ $('Normalize Request').first().json.visitorHash }}"
+        }
+      },
+      "id": "90040fe7-f921-448d-b125-d82a9dc6c765",
+      "name": "Insert Document Row",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.7,
+      "position": [
+        -1568,
+        128
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "WiN8JcRALUNP4dCD",
+          "name": "V-Unite Supabase"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const s=$input.first().json;const raw=(s.text||s.data||s.content||'').toString();const clean=raw.replace(/\\r\\n/g,'\\n').replace(/\\n{3,}/g,'\\n\\n').trim();if(!clean){throw new Error('no_text_extracted');}if(clean.length>40000){throw new Error('extracted_text_too_large');}const SIZE=2000,OVERLAP=300,out=[];let i=0;while(i<clean.length){const p=clean.slice(i,i+SIZE).trim();if(p)out.push(p);i+=SIZE-OVERLAP;}return out.map((content,idx)=>({json:{content,chunk_index:idx}}));"
       },
       "id": "667492dc-f1a2-4fcc-9f67-897c1ac344d2",
-      "name": "Chunk",
+      "name": "Split Into Chunks",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -896,
         128
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -201,13 +248,13 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_document\", \"embedding_types\": [\"float\"], \"texts\": $('Chunk').all().map(i => i.json.content) } }}",
+        "jsonBody": "={{ { \"model\": \"embed-english-v3.0\", \"input_type\": \"search_document\", \"embedding_types\": [\"float\"], \"texts\": $('Split Into Chunks').all().map(i => i.json.content) } }}",
         "options": {
           "timeout": 60000
         }
       },
       "id": "6bb762a0-ea4e-4a5e-ba34-367006455781",
-      "name": "Cohere Embed",
+      "name": "Cohere Embed Chunks",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.5,
       "position": [
@@ -217,6 +264,7 @@
       "executeOnce": true,
       "credentials": {
         "httpHeaderAuth": {
+          "id": "ilGezGrYrepE9i9p",
           "name": "Cohere Header"
         }
       },
@@ -224,21 +272,20 @@
     },
     {
       "parameters": {
-        "jsCode": "const v=$json.embeddings&&$json.embeddings.float;const c=$('Chunk').all().map(i=>i.json);if(!Array.isArray(v)||v.length!==c.length){throw new Error('embedding_count_mismatch');}const docId=$('Insert Document').first().json.id;const clinicId=$('Normalize').first().json.clinicId;const filename=$('Normalize').first().json.filename;return c.map((x,idx)=>({json:{document_id:docId,clinic_id:clinicId,content:x.content,chunk_index:x.chunk_index,embedding:'['+v[idx].join(',')+']',metadata:JSON.stringify({source:filename,chunk_index:x.chunk_index})}}));"
+        "jsCode": "const v=$json.embeddings&&$json.embeddings.float;const c=$('Split Into Chunks').all().map(i=>i.json);if(!Array.isArray(v)||v.length!==c.length){throw new Error('embedding_count_mismatch');}const docId=$('Insert Document Row').first().json.id;const clinicId=$('Normalize Request').first().json.clinicId;const filename=$('Normalize Request').first().json.filename;const visitorHash=$('Normalize Request').first().json.visitorHash;return c.map((x,idx)=>({json:{document_id:docId,clinic_id:clinicId,visitor_token_hash:visitorHash,content:x.content,chunk_index:x.chunk_index,embedding:'['+v[idx].join(',')+']',metadata:JSON.stringify({source:filename,chunk_index:x.chunk_index})}}));"
       },
       "id": "832240c9-a3a2-4bdc-99da-25c7b27d5b25",
-      "name": "Zip Embeddings",
+      "name": "Attach Embeddings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         -448,
         48
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
-        "resource": "database",
-        "operation": "insert",
         "schema": {
           "__rl": true,
           "mode": "list",
@@ -257,7 +304,8 @@
             "content": "={{ $json.content }}",
             "chunk_index": "={{ $json.chunk_index }}",
             "embedding": "={{ $json.embedding }}",
-            "metadata": "={{ $json.metadata }}"
+            "metadata": "={{ $json.metadata }}",
+            "visitor_token_hash": "={{ $json.visitor_token_hash }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -314,13 +362,22 @@
               "display": true,
               "defaultMatch": false,
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "visitor_token_hash",
+              "displayName": "visitor_token_hash",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
             }
           ]
         },
         "options": {}
       },
       "id": "197ea277-eccd-40c8-89ac-13642a779c20",
-      "name": "Insert Chunks",
+      "name": "Insert Chunk Rows",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
@@ -329,6 +386,7 @@
       ],
       "credentials": {
         "postgres": {
+          "id": "WiN8JcRALUNP4dCD",
           "name": "V-Unite Supabase"
         }
       },
@@ -339,116 +397,54 @@
         "operation": "executeQuery",
         "query": "update knowledge_documents set status = 'ready' where id = $1",
         "options": {
-          "queryReplacement": "={{ $(\"Insert Document\").first().json.id }}"
+          "queryReplacement": "={{ $(\"Insert Document Row\").first().json.id }}"
         }
       },
       "id": "b83c4838-8cfa-4caa-9668-62994f141ebd",
-      "name": "Mark Ready",
+      "name": "Mark Document Ready",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
         0,
-        0
+        -96
       ],
       "executeOnce": true,
       "credentials": {
         "postgres": {
+          "id": "WiN8JcRALUNP4dCD",
           "name": "V-Unite Supabase"
         }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"ok\": true, \"documentId\": $(\"Insert Document\").first().json.id, \"chunks\": $(\"Chunk\").all().length, \"status\": \"ready\" } }}",
-        "options": {
-          "responseCode": 200
-        }
       },
-      "id": "a8523538-86cd-4a5f-bf8d-b4a8384ec643",
-      "name": "Respond Success",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        224,
-        0
-      ]
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "executeQuery",
         "query": "update knowledge_documents set status = 'failed' where id = $1",
         "options": {
-          "queryReplacement": "={{ $(\"Insert Document\").first().json.id }}"
+          "queryReplacement": "={{ $(\"Insert Document Row\").first().json.id }}"
         }
       },
       "id": "4ad022ff-008e-4f9c-bf32-9ba248f3867e",
-      "name": "Mark Failed",
+      "name": "Mark Document Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.7,
       "position": [
         0,
-        224
+        208
       ],
       "executeOnce": true,
       "credentials": {
         "postgres": {
+          "id": "WiN8JcRALUNP4dCD",
           "name": "V-Unite Supabase"
         }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"ok\": false, \"error\": \"ingestion_failed\" } }}",
-        "options": {
-          "responseCode": 502
-        }
       },
-      "id": "fa330668-2e8a-441f-a0ba-756711d098f2",
-      "name": "Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.5,
-      "position": [
-        224,
-        224
-      ]
+      "onError": "continueErrorOutput"
     }
   ],
+  "pinData": {},
   "connections": {
-    "Ingest Webhook": {
-      "main": [
-        [
-          {
-            "node": "Normalize",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize": {
-      "main": [
-        [
-          {
-            "node": "Route File Type",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Insert Document": {
-      "main": [
-        [
-          {
-            "node": "Cohere Embed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Route File Type": {
       "main": [
         [
@@ -471,7 +467,14 @@
       "main": [
         [
           {
-            "node": "Chunk",
+            "node": "Split Into Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
@@ -482,72 +485,133 @@
       "main": [
         [
           {
-            "node": "Chunk",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Chunk": {
-      "main": [
-        [
-          {
-            "node": "Insert Document",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Cohere Embed": {
-      "main": [
-        [
-          {
-            "node": "Zip Embeddings",
+            "node": "Split Into Chunks",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Mark Failed",
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Zip Embeddings": {
+    "Knowledge Webhook": {
       "main": [
         [
           {
-            "node": "Insert Chunks",
+            "node": "Normalize Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Chunks": {
+    "Normalize Request": {
       "main": [
         [
           {
-            "node": "Mark Ready",
+            "node": "Route File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Document Row": {
+      "main": [
+        [
+          {
+            "node": "Cohere Embed Chunks",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Mark Failed",
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Mark Ready": {
+    "Split Into Chunks": {
+      "main": [
+        [
+          {
+            "node": "Insert Document Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cohere Embed Chunks": {
+      "main": [
+        [
+          {
+            "node": "Attach Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Document Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Insert Chunk Rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Document Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Chunk Rows": {
+      "main": [
+        [
+          {
+            "node": "Mark Document Ready",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Document Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Document Ready": {
       "main": [
         [
           {
@@ -555,11 +619,25 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Mark Document Failed",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "Mark Failed": {
+    "Mark Document Failed": {
       "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Respond Error",
@@ -570,8 +648,17 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "pinData": {}
+  "versionId": "c319bff2-734a-4cd6-b503-3d9d9b0c05ac",
+  "meta": {
+    "instanceId": "37231671985b58f0b86c578658cf6abdc1cef563000a849380b091f8ba145e95"
+  },
+  "nodeGroups": [],
+  "id": "ZPJQHNi1EJrkdWGF",
+  "tags": []
 }

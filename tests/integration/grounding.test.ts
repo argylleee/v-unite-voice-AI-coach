@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseAgentResponse } from "../../src/lib/validation/agent-response";
 
 vi.mock("@/lib/db/sessions", () => ({ recordTurn: vi.fn() }));
+vi.mock("@/lib/demo/rate-limit", () => ({ enforceDemoLimit: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/demo/synthetic", () => ({ requireSyntheticDemoClinic: vi.fn().mockResolvedValue(null) }));
 
 const { POST } = await import("../../src/app/api/coach/route");
 
@@ -50,6 +52,7 @@ function jsonResponse(payload: unknown, status = 200): Response {
 beforeEach(() => {
   vi.stubEnv("N8N_CHAT_WEBHOOK_URL", WEBHOOK_URL);
   vi.stubEnv("N8N_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("NEXT_PUBLIC_CLINIC_ID", VALID_BODY.clinicId);
 });
 
 afterEach(() => {

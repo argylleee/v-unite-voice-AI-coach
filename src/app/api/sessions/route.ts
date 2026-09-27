@@ -1,5 +1,8 @@
 import { createSession, listSessions } from "@/lib/db/sessions";
 import { CreateSessionSchema, SessionListQuerySchema } from "@/lib/validation/session";
+import { isDemoClinic, newOrExistingVisitor, visitorHash } from "@/lib/demo/visitor";
+import { enforceDemoLimit } from "@/lib/demo/rate-limit";
+import { requireSyntheticDemoClinic } from "@/lib/demo/synthetic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,10 +23,21 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!isDemoClinic(parsed.data.clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
+
+  const limited = await enforceDemoLimit(request, "session");
+  if (limited) return limited;
+  const visitor = newOrExistingVisitor(request);
 
   try {
-    const { id } = await createSession(parsed.data.clinicId, parsed.data.title);
-    return Response.json({ ok: true, id }, { status: 201 });
+    const { id } = await createSession(parsed.data.clinicId, visitor.hash, parsed.data.title);
+    const response = Response.json({ ok: true, id }, { status: 201 });
+    if (visitor.cookie) response.headers.set("Set-Cookie", visitor.cookie);
+    return response;
   } catch (err) {
     console.error("[api/sessions] create failed:", err);
     return Response.json({ ok: false, error: "db_error" }, { status: 502 });
@@ -40,9 +54,16 @@ export async function GET(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!isDemoClinic(parsed.data.clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
+  const visitor = visitorHash(request);
+  if (!visitor) return Response.json({ ok: true, sessions: [] }, { status: 200 });
 
   try {
-    const sessions = await listSessions(parsed.data.clinicId);
+    const sessions = await listSessions(parsed.data.clinicId, visitor);
     return Response.json({ ok: true, sessions }, { status: 200 });
   } catch (err) {
     console.error("[api/sessions] list failed:", err);

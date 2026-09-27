@@ -4,11 +4,11 @@ import type { SessionSummary } from "@/lib/validation/session";
 
 // Server-side session/message persistence (service-role key). Callers are Next.js API routes.
 
-export async function createSession(clinicId: string, title?: string): Promise<{ id: string }> {
+export async function createSession(clinicId: string, visitorTokenHash: string, title?: string): Promise<{ id: string }> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("coaching_sessions")
-    .insert({ clinic_id: clinicId, title: title ?? null })
+    .insert({ clinic_id: clinicId, visitor_token_hash: visitorTokenHash, title: title ?? null })
     .select("id")
     .single();
   if (error) throw error;
@@ -24,12 +24,13 @@ export interface SessionListItem {
   message_count: number;
 }
 
-export async function listSessions(clinicId: string): Promise<SessionListItem[]> {
+export async function listSessions(clinicId: string, visitorTokenHash: string): Promise<SessionListItem[]> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("coaching_sessions")
     .select("id, title, started_at, ended_at, summary, messages(count)")
     .eq("clinic_id", clinicId)
+    .eq("visitor_token_hash", visitorTokenHash)
     .order("started_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((row) => {
@@ -50,12 +51,18 @@ export interface SessionDetail {
   messages: Record<string, unknown>[];
 }
 
-export async function getSessionWithMessages(sessionId: string): Promise<SessionDetail | null> {
+export async function getSessionWithMessages(
+  sessionId: string,
+  clinicId: string,
+  visitorTokenHash: string,
+): Promise<SessionDetail | null> {
   const supabase = createAdminClient();
   const sessionRes = await supabase
     .from("coaching_sessions")
-    .select("*")
+    .select("id, clinic_id, title, started_at, ended_at, summary, key_findings, action_plan")
     .eq("id", sessionId)
+    .eq("clinic_id", clinicId)
+    .eq("visitor_token_hash", visitorTokenHash)
     .maybeSingle();
   if (sessionRes.error) throw sessionRes.error;
   if (!sessionRes.data) return null;
@@ -70,13 +77,34 @@ export async function getSessionWithMessages(sessionId: string): Promise<Session
   return { session: sessionRes.data, messages: msgRes.data ?? [] };
 }
 
+export async function sessionBelongsToVisitor(
+  sessionId: string,
+  clinicId: string,
+  visitorTokenHash: string,
+): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("coaching_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("clinic_id", clinicId)
+    .eq("visitor_token_hash", visitorTokenHash)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
 /** Append a user turn + the coach's answer to a session. Best-effort — callers log, don't fail. */
 export async function recordTurn(
   sessionId: string,
+  clinicId: string,
+  visitorTokenHash: string,
   userMessage: string,
   mode: "chat" | "voice",
   answer: AgentResponse,
 ): Promise<void> {
+  if (!(await sessionBelongsToVisitor(sessionId, clinicId, visitorTokenHash))) {
+    throw new Error("session_not_found");
+  }
   const supabase = createAdminClient();
   const { error } = await supabase.from("messages").insert([
     { session_id: sessionId, role: "user", content: userMessage, input_mode: mode },
@@ -99,41 +127,45 @@ export async function recordTurn(
 /** Persist the end-of-session summary + action plan (coaching_sessions + action_plans rows). */
 export async function finalizeSession(
   sessionId: string,
+  clinicId: string,
+  visitorTokenHash: string,
   summary: SessionSummary,
 ): Promise<void> {
   const supabase = createAdminClient();
+  const { error } = await supabase.rpc("finalize_demo_session", {
+    p_session_id: sessionId,
+    p_clinic_id: clinicId,
+    p_visitor_token_hash: visitorTokenHash,
+    p_summary: summary.summary,
+    p_key_findings: summary.key_findings,
+    p_action_plan: summary.action_plan,
+  });
+  if (error) throw error;
+}
 
-  const upd = await supabase
+export async function getSessionState(
+  sessionId: string,
+  clinicId: string,
+  visitorTokenHash: string,
+): Promise<{ ended_at: string | null; summary: string | null; key_findings: string[] | null; action_plan: SessionSummary["action_plan"] | null } | null> {
+  const { data, error } = await createAdminClient()
     .from("coaching_sessions")
-    .update({
-      ended_at: new Date().toISOString(),
-      summary: summary.summary,
-      key_findings: summary.key_findings,
-      action_plan: summary.action_plan,
-    })
-    .eq("id", sessionId);
-  if (upd.error) throw upd.error;
-
-  // Refresh the checkable action_plans rows for this session.
-  const del = await supabase.from("action_plans").delete().eq("session_id", sessionId);
-  if (del.error) throw del.error;
-
-  if (summary.action_plan.length > 0) {
-    const ins = await supabase.from("action_plans").insert(
-      summary.action_plan.map((item) => ({
-        session_id: sessionId,
-        action: item.action,
-        priority: item.priority,
-      })),
-    );
-    if (ins.error) throw ins.error;
-  }
+    .select("ended_at, summary, key_findings, action_plan")
+    .eq("id", sessionId)
+    .eq("clinic_id", clinicId)
+    .eq("visitor_token_hash", visitorTokenHash)
+    .maybeSingle();
+  if (error) throw error;
+  return data as typeof data & { key_findings: string[] | null; action_plan: SessionSummary["action_plan"] | null };
 }
 
 /** The transcript WF-04 summarizes. */
-export async function getTranscript(sessionId: string): Promise<
+export async function getTranscript(sessionId: string, clinicId: string, visitorTokenHash: string): Promise<
   { role: string; content: string }[]
 > {
+  if (!(await sessionBelongsToVisitor(sessionId, clinicId, visitorTokenHash))) {
+    throw new Error("session_not_found");
+  }
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("messages")

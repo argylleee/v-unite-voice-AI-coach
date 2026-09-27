@@ -1,6 +1,9 @@
 import { n8nChatConfig } from "@/lib/env";
 import { callN8nWebhook, N8nError } from "@/lib/n8n/client";
-import { recordTurn } from "@/lib/db/sessions";
+import { recordTurn, sessionBelongsToVisitor } from "@/lib/db/sessions";
+import { isDemoClinic, visitorHash } from "@/lib/demo/visitor";
+import { enforceDemoLimit } from "@/lib/demo/rate-limit";
+import { requireSyntheticDemoClinic } from "@/lib/demo/synthetic";
 import {
   FALLBACK_RESPONSE,
   parseAgentResponse,
@@ -10,8 +13,8 @@ import { ChatRequestSchema } from "@/lib/validation/chat";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Vercel serverless cap. Coach turns (DeepSeek + tools on free-tier Railway) can run 30s+;
-// the Hobby default is 10s. 60s is the Hobby maximum and matches COACH_TIMEOUT_MS.
+// Allow the self-hosted n8n coach enough time for model and tool calls while keeping
+// the upstream timeout below the function limit.
 export const maxDuration = 60;
 
 // POST /api/coach — validates the request, forwards it server-side to the n8n chat webhook
@@ -32,6 +35,26 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  if (!isDemoClinic(parsed.data.clinicId)) {
+    return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+  }
+  const synthetic = await requireSyntheticDemoClinic();
+  if (synthetic) return synthetic;
+  const visitor = visitorHash(request);
+  if (parsed.data.sessionId) {
+    if (!visitor) return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+    try {
+      if (!(await sessionBelongsToVisitor(parsed.data.sessionId, parsed.data.clinicId, visitor))) {
+        return Response.json({ ok: false, error: "not_found" }, { status: 404 });
+      }
+    } catch (err) {
+      console.error("[api/coach] session check failed:", err);
+      return Response.json({ ok: false, error: "db_error" }, { status: 502 });
+    }
+  }
+
+  const limited = await enforceDemoLimit(request, "coach");
+  if (limited) return limited;
 
   let config: { url: string; secret: string };
   try {
@@ -44,10 +67,11 @@ export async function POST(request: Request): Promise<Response> {
   try {
     // One n8n call per turn (docs/AI_AGENT.md budget rule); a second call only if the
     // first response fails schema validation.
-    let result = await callAndValidate(config, parsed.data);
+    const payload = { ...parsed.data, visitorHash: visitor };
+    let result = await callAndValidate(config, payload);
     if (!result) {
       console.warn("[api/coach] agent response failed validation — retrying once");
-      result = await callAndValidate(config, parsed.data);
+      result = await callAndValidate(config, payload);
     }
     if (!result) {
       console.error("[api/coach] agent response invalid twice — returning safe fallback");
@@ -58,7 +82,14 @@ export async function POST(request: Request): Promise<Response> {
     // failure must not drop the coaching answer the user is waiting on.
     if (parsed.data.sessionId) {
       try {
-        await recordTurn(parsed.data.sessionId, parsed.data.message, parsed.data.mode, result);
+        await recordTurn(
+          parsed.data.sessionId,
+          parsed.data.clinicId,
+          visitor!,
+          parsed.data.message,
+          parsed.data.mode,
+          result,
+        );
       } catch (err) {
         console.error("[api/coach] recordTurn failed:", err);
       }
@@ -76,9 +107,9 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 // A hybrid coaching turn can be 2-4 tool calls (SQL + RAG) plus reasoning. On the free-tier
-// n8n host a slow one lands around 15-40s; 60s leaves headroom without letting a wedged
+// n8n host a slow one lands around 15-40s; 55s leaves headroom without letting a wedged
 // upstream hang the UI. Timeout failures are NOT retried (only schema-invalid output is).
-const COACH_TIMEOUT_MS = 60_000;
+const COACH_TIMEOUT_MS = 55_000;
 
 async function callAndValidate(
   config: { url: string; secret: string },

@@ -122,17 +122,17 @@ test("core journey: ask a coaching question, get an evidenced answer, end with a
   // open app -> redirected to the coach
   await page.goto("/");
   await expect(page).toHaveURL(/\/coach$/);
-  await expect(page.getByRole("heading", { name: "Coach", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What’s on your mind?" })).toBeVisible();
 
   // ask a coaching question
-  await page.getByLabel("Ask the coach").fill("Which treatment has the lowest conversion?");
+  await page.getByRole("textbox", { name: "Ask the coach" }).fill("Which treatment has the lowest conversion?");
   await page.getByRole("button", { name: "Ask" }).click();
 
   // structured answer references a specific treatment + number, and shows its evidence
   await expect(page.getByText(/CoolSculpting/).first()).toBeVisible();
   await expect(page.getByText(/27\.6%/).first()).toBeVisible();
-  await expect(page.getByText("Findings", { exact: true })).toBeVisible();
-  await expect(page.getByText("Plan", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What it found" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What to do next" })).toBeVisible();
   await expect(
     page.getByText(/Consultation SOP section 4\.2/).first(),
   ).toBeVisible();
@@ -150,7 +150,7 @@ test("the three sections are reachable from the rail", async ({ page }) => {
   await page.goto("/coach");
   await page.getByRole("link", { name: "Knowledge" }).click();
   await expect(page).toHaveURL(/\/knowledge$/);
-  await expect(page.getByRole("heading", { name: "Knowledge base" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Knowledge", exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Sessions" }).click();
   await expect(page).toHaveURL(/\/sessions$/);

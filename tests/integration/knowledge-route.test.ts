@@ -18,6 +18,8 @@ function makeBuilder(): Record<string, unknown> {
     return builder;
   });
   builder.eq = vi.fn(chain);
+  builder.or = vi.fn(chain);
+  builder.is = vi.fn(chain);
   builder.order = vi.fn(chain);
   builder.then = (resolve: (v: unknown) => unknown) =>
     resolve(
@@ -31,6 +33,8 @@ function makeBuilder(): Record<string, unknown> {
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({ from: vi.fn(() => makeBuilder()) })),
 }));
+vi.mock("@/lib/demo/rate-limit", () => ({ enforceDemoLimit: vi.fn().mockResolvedValue(null) }));
+vi.mock("@/lib/demo/synthetic", () => ({ requireSyntheticDemoClinic: vi.fn().mockResolvedValue(null) }));
 
 import { GET, POST } from "../../src/app/api/knowledge/route";
 
@@ -49,12 +53,13 @@ function uploadRequest(opts: {
 }
 
 function pdf(name = "policy.pdf", bytes = 2048): File {
-  return new File([new Uint8Array(bytes)], name, { type: "application/pdf" });
+  return new File(["%PDF-", new Uint8Array(Math.max(bytes - 5, 0))], name, { type: "application/pdf" });
 }
 
 beforeEach(() => {
   vi.stubEnv("N8N_KNOWLEDGE_WEBHOOK_URL", N8N_URL);
   vi.stubEnv("N8N_WEBHOOK_SECRET", SECRET);
+  vi.stubEnv("NEXT_PUBLIC_CLINIC_ID", CLINIC);
   supabaseState.count = 0;
   supabaseState.countError = null;
   supabaseState.listData = [];
@@ -106,6 +111,13 @@ describe("POST /api/knowledge", () => {
     expect(await res.json()).toMatchObject({ error: expect.stringContaining("file_too_large") });
   });
 
+  it("rejects a PDF filename with non-PDF contents", async () => {
+    const fake = new File(["<script>alert(1)</script>"], "policy.pdf", { type: "application/pdf" });
+    const res = await POST(uploadRequest({ file: fake }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_pdf" });
+  });
+
   it("rejects once the per-clinic document limit is reached (409)", async () => {
     supabaseState.count = 25;
     const fetchMock = vi.fn();
@@ -121,7 +133,7 @@ describe("POST /api/knowledge", () => {
   it("forwards a valid upload to n8n with the bearer secret and returns 202", async () => {
     supabaseState.count = 3;
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ documentId: "doc-1", status: "processing" }), {
+      new Response(JSON.stringify({ ok: true, documentId: "doc-1", status: "processing" }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -141,6 +153,7 @@ describe("POST /api/knowledge", () => {
     expect(forwarded.get("clinicId")).toBe(CLINIC);
     expect(forwarded.get("fileType")).toBe("pdf");
     expect(forwarded.get("filename")).toBe("sop.pdf");
+    expect(forwarded.get("visitorHash")).toMatch(/^[0-9a-f]{64}$/);
     expect(forwarded.get("file")).toBeInstanceOf(File);
   });
 

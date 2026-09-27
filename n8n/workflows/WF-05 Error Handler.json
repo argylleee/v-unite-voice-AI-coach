@@ -3,49 +3,78 @@
   "nodes": [
     {
       "parameters": {
-        "inputSource": "passthrough"
-      },
-      "name": "When Called",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1,
-      "position": [-360, 0],
-      "id": "a1b2c3d4-0005-4a10-9f01-000000000001"
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
         "jsCode": "// Shared failure path (docs/N8N.md WF-05). Every other workflow's error branch calls this\n// via an Execute Workflow node, passing whatever context it has. This normalises that into\n// one shape, writes one line to the execution log for observability, and hands back a\n// standardised error envelope the caller returns to Next.js.\nconst inp = $json && typeof $json === 'object' ? $json : {};\nconst body = inp.body && typeof inp.body === 'object' ? inp.body : inp;\n\nconst workflow = String(body.workflow || body.source || 'unknown');\nconst stage = String(body.stage || body.node || 'unknown');\nconst rawErr = body.error ?? body.message ?? body.reason ?? 'unspecified error';\nconst message = (typeof rawErr === 'string' ? rawErr : JSON.stringify(rawErr)).slice(0, 500);\nconst requestId = String(body.requestId || body.request_id || $execution.id || '');\n\nlet statusCode = Number(body.statusCode || body.status || 0);\nif (!Number.isInteger(statusCode) || statusCode < 400 || statusCode > 599) statusCode = 502;\n\nconst code = String(body.code || (statusCode === 400 ? 'invalid_request' : 'workflow_failed'));\n\nconsole.log('[WF-05] ' + JSON.stringify({ workflow, stage, code, statusCode, requestId, message }));\n\nreturn [{ json: { workflow, stage, code, statusCode, requestId, message, at: new Date().toISOString() } }];"
       },
       "name": "Normalize Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-140, 0],
-      "id": "a1b2c3d4-0005-4a10-9f01-000000000002"
+      "position": [
+        224,
+        0
+      ],
+      "id": "57eeef9e-626b-471a-835b-11fef9b30c93"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
         "jsCode": "// The envelope the calling workflow should return from its Respond node, with the HTTP\n// status to use. Kept deliberately small and free of clinic data.\nconst e = $json;\nreturn [{ json: {\n  statusCode: e.statusCode,\n  response: {\n    ok: false,\n    error: e.code,\n    message: e.message,\n    workflow: e.workflow,\n    stage: e.stage,\n    requestId: e.requestId\n  }\n} }];"
       },
       "name": "Build Error Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [80, 0],
-      "id": "a1b2c3d4-0005-4a10-9f01-000000000003"
+      "position": [
+        448,
+        0
+      ],
+      "id": "4e86f0df-c0b0-4685-9f03-9aa7a4ac1822"
+    },
+    {
+      "parameters": {},
+      "name": "Error Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "82a875c4-939a-4e5a-8b7f-169405073d71"
     }
   ],
+  "pinData": {},
   "connections": {
-    "When Called": {
-      "main": [[{ "node": "Normalize Error", "type": "main", "index": 0 }]]
-    },
     "Normalize Error": {
-      "main": [[{ "node": "Build Error Response", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Input": {
+      "main": [
+        [
+          {
+            "node": "Normalize Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "pinData": {}
+  "versionId": "82095a72-7a60-45e1-91ce-716576dfea2d",
+  "meta": {
+    "instanceId": "37231671985b58f0b86c578658cf6abdc1cef563000a849380b091f8ba145e95"
+  },
+  "nodeGroups": [],
+  "id": "jf3sPxpfpp66q4FX",
+  "tags": []
 }
