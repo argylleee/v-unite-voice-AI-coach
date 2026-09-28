@@ -17,7 +17,7 @@ for the backup location, settings, and remaining uptime risks before changing Ve
 3. Compare existing workflow IDs with the IDs referenced by WF-01's `knowledge_search` tool and
    WF-02's coach call. Rebind the tool to the imported `knowledge_search` in the editor.
 4. Check these named credentials in the editor and reselect them on each imported node:
-   `V-Unite Supabase`, `V-Unite n8n Webhook Secret`, `DeepSeek`, `Cohere account`,
+   `V-Unite Supabase`, `V-Unite n8n Webhook Secret`, `Groq account`, `Cohere account`,
    `Cohere Header`, `Groq account`, and `Fish Audio`. The JSON exports contain credential
    references, not usable secret material.
 
@@ -42,17 +42,16 @@ older sessions had no visitor owner, so the new public routes do not expose them
 `/api/knowledge` and `/api/sessions` each returned HTTP 200 with zero visible legacy records.
 A short production coach greeting returned HTTP 200, but a cancellation-policy question returned
 HTTP 502 twice while the same question sent directly to the DuckDNS WF-01 returned HTTP 200.
-The remaining production failure needs Vercel function logs and its Production webhook URL
-checked in the signed-in Vercel dashboard; the cause has not yet been established.
+The later Vercel request trace confirmed its outbound POST reached the DuckDNS `/webhook/coach`
+endpoint. The failure was inside WF-01; see the diagnosis below.
 
 For the already imported workflows, edit these nodes in the n8n editor and publish both workflows:
 
 1. In **WF-01 Chat Coach → AI Coach Agent**, set **Max Iterations** to `4`. In its system message,
    tell the agent: `If knowledge_search returns found: 0, stop using tools and say no approved
    document is available in this public demo. Do not infer that the clinic has no policy. Use
-   evidence: [] for this case.` Keep the existing Groq model and credentials. The local WF-01
-   JSON contains the full revised system message for comparison; reimporting the whole export
-   would overwrite the working live model selection.
+   evidence: [] for this case.` The local WF-01 JSON contains the full revised system message
+   and current Groq Qwen model selection for comparison.
 2. In **WF-02 Voice Coach → Call Chat Coach (WF-01)**, set URL to
    `http://127.0.0.1:5678/webhook/coach`. Keep the bearer credential. This URL is only for the
    call made inside the n8n container; Vercel must continue to use the public HTTPS URL.
@@ -84,6 +83,29 @@ WF-01 and WF-02 versions; readiness returned to HTTP 200, and the exact producti
 then returned HTTP 200 in 6.98 seconds. The restart result supports stale active runtime state
 as a contributing cause, but the specific internal `agent_error` was not captured. Keep
 monitoring this path, especially after future publishes.
+
+On 2026-09-28, successful production execution capture was enabled temporarily on WF-01.
+Execution #903 showed `knowledge_search` returned `found: 0`, then Groq rejected the next
+`openai/gpt-oss-120b` response: `attempted to call tool 'json' which was not in request.tools`.
+This caused the WF-01 `Respond Agent Error` branch and Vercel HTTP 502. The live Groq Chat
+Model was changed to `qwen/qwen3.8-27b` and published as **Groq Qwen tool-call fix**. A
+synthetic policy question and policy-template follow-up each returned HTTP 200 through the
+deployed Vercel `/api/coach`, in about 14 and 7 seconds respectively. WF-01's successful
+production execution retention was restored to **Default - Do not save** after diagnosis.
+The local WF-01 export now matches the live model type and selection. This verifies the
+chat path for those two prompts.
+
+A synthetic WAV sent through the deployed `/api/voice` reached WF-02 execution #911. Groq
+Whisper transcribed it, WF-01 answered, and Fish Audio TTS returned `401 Invalid Token`.
+The live **Fish Audio TTS** node had selected `V-Unite n8n Webhook Secret` as its Header Auth
+credential. The n8n credential picker showed no Fish Audio Header Auth credential, despite
+the local WF-02 export referring to one. Create a separate Header Auth credential named
+`Fish Audio`, with header name `Authorization` and value `Bearer <Fish Audio API key>`, then
+select it on the TTS node and publish WF-02. Never reuse the n8n webhook secret for Fish.
+The exported JSON contains only a credential reference; importing it does not import its key.
+Retest `/api/voice` and confirm the response includes transcript, answer, and audio before
+considering voice restored. WF-02 temporarily saves successful production executions for
+diagnosis; restore its setting to **Default - Do not save** after the voice retest.
 
 The VM's Compose environment has `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`, so successful runs
 do not appear in the execution history. A run that vanishes after stopping is not evidence that
