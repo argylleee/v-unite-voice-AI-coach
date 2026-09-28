@@ -99,13 +99,16 @@ A synthetic WAV sent through the deployed `/api/voice` reached WF-02 execution #
 Whisper transcribed it, WF-01 answered, and Fish Audio TTS returned `401 Invalid Token`.
 The live **Fish Audio TTS** node had selected `V-Unite n8n Webhook Secret` as its Header Auth
 credential. The n8n credential picker showed no Fish Audio Header Auth credential, despite
-the local WF-02 export referring to one. Create a separate Header Auth credential named
-`Fish Audio`, with header name `Authorization` and value `Bearer <Fish Audio API key>`, then
-select it on the TTS node and publish WF-02. Never reuse the n8n webhook secret for Fish.
-The exported JSON contains only a credential reference; importing it does not import its key.
-Retest `/api/voice` and confirm the response includes transcript, answer, and audio before
-considering voice restored. WF-02 temporarily saves successful production executions for
-diagnosis; restore its setting to **Default - Do not save** after the voice retest.
+the local WF-02 export referring to one. The owner created a separate Header Auth credential
+named `Fish Audio` (header `Authorization`, value `Bearer <Fish Audio API key>`) and selected
+it on the published WF-02 node. Never reuse the n8n webhook secret for Fish. The exported
+JSON contains only a credential reference; importing it does not import its key, and the
+credential must be rebound on each new n8n host.
+
+After this change, one synthetic WAV sent through deployed `/api/voice` returned HTTP 200
+with transcript, answer, and audio present. WF-02's successful production execution setting
+was restored to **Default - Do not save** and verified after saving. This confirms one full
+voice turn; longer recordings and other workflow paths were not exercised in this test.
 
 The VM's Compose environment has `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`, so successful runs
 do not appear in the execution history. A run that vanishes after stopping is not evidence that
