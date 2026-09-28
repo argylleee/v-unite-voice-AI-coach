@@ -40,6 +40,7 @@ const MESSAGES: Record<string, string> = {
   db_error: "Couldn't reach the clinic records just now.",
   document_limit_reached: "You have reached the demo's uploaded-document limit.",
   rate_limited: "The demo's request limit was reached. Please try again later.",
+  model_rate_limited: "The coach is busy at its AI service limit. Please wait a minute and retry.",
   rate_limit_unavailable: "The demo is temporarily unavailable. Please try again later.",
   demo_data_unavailable: "The synthetic demo data is not ready yet.",
   empty_session: "This session has no messages to summarise yet.",

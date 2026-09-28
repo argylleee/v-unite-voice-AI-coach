@@ -110,6 +110,29 @@ with transcript, answer, and audio present. WF-02's successful production execut
 was restored to **Default - Do not save** and verified after saving. This confirms one full
 voice turn; longer recordings and other workflow paths were not exercised in this test.
 
+The suggested question **Which treatment needs attention?** later exposed another WF-01
+failure. Saved execution #922 showed the agent called `customer_analytics`, then fetched 48
+individual customer rows it did not need. The next Groq request exceeded the free model's
+7,000 input-token-per-minute limit. After routing treatment comparisons to aggregate metrics
+only, execution #923 showed a separate limit: n8n's default requested 1,072 output tokens,
+above this Groq tier's 1,000 output-token-per-minute request ceiling. A first cap of 650
+truncated the JSON answer, so WF-01 now caps the model at 850 tokens, requires a shorter
+answer and evidence, and limits `customer_lookup` to 12 oldest rows if it is needed for a
+people question. The live workflow was published as **Concise grounded responses**. The
+exact treatment question then returned HTTP 200 in 5.8 seconds with CoolSculpting and three
+evidence entries; execution #926 used `customer_analytics` only. A cancellation-policy
+regression question also returned HTTP 200 with no invented evidence. WF-01's successful
+execution retention was restored to **Default - Do not save** and verified.
+
+A later **Which customers need follow-up?** request failed once and succeeded on retry in
+4.4 seconds with three evidence entries. This is consistent with the shared Groq free-tier
+quota observed in executions #922–#925, but that failed request was not retained, so its
+exact cause is unconfirmed. WF-01 now labels the observed “too many requests” agent failure
+as `model_rate_limited`; `/api/coach` maps it to HTTP 429 and the UI asks the visitor to
+wait a minute. This makes the failure actionable but does not increase Groq's quota. WF-01
+was published as **Specific model rate-limit response**, then successful execution retention
+was restored to **Default - Do not save**.
+
 The VM's Compose environment has `EXECUTIONS_DATA_SAVE_ON_SUCCESS=none`, so successful runs
 do not appear in the execution history. A run that vanishes after stopping is not evidence that
 the user deleted it; the exact fate of a stopped run needs host logs or the workflow's execution

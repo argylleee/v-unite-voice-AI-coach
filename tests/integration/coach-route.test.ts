@@ -203,6 +203,18 @@ describe("POST /api/coach", () => {
     expect(await res.json()).toMatchObject({ ok: false, error: "upstream_error" });
   });
 
+  it("returns a distinct 429 for the model provider's rate limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ ok: false, error: "model_rate_limited" }, 502),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(makeRequest(VALID_BODY));
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({ ok: false, error: "model_rate_limited" });
+  });
+
   it("returns 502 when the n8n call throws (network/timeout)", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
     vi.stubGlobal("fetch", fetchMock);

@@ -99,6 +99,15 @@ export async function POST(request: Request): Promise<Response> {
   } catch (err) {
     const status = err instanceof N8nError ? err.status : undefined;
     console.error("[api/coach] n8n call failed:", err);
+    if (
+      err instanceof N8nError &&
+      err.body &&
+      typeof err.body === "object" &&
+      "error" in err.body &&
+      err.body.error === "model_rate_limited"
+    ) {
+      return Response.json({ ok: false, error: "model_rate_limited" }, { status: 429 });
+    }
     return Response.json(
       { ok: false, error: "upstream_error", upstreamStatus: status ?? null },
       { status: 502 },
